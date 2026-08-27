@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: mixmaster-bot
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: ./start.sh
+    plan: starter
+    autoDeploy: false
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
+      - key: ADMIN_ID
+        sync: false
+      - key: BOT_POWER
+        value: "on"
+      - key: SMART_MODE
+        value: "0"

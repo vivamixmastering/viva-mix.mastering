@@ -1,0 +1,13 @@
+# کتابخانه‌های اصلی ربات (برای رندر/سرور ابری)
+aiogram>=3.7,<4
+setuptools<81
+numpy
+scipy
+soundfile
+pyyaml
+pedalboard
+pyloudnorm
+pyworld
+python-dotenv
+aiohttp
+imageio-ffmpeg
