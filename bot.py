@@ -42,7 +42,7 @@ async def main() -> None:
         BotCommand(command="test", description="🎧 تست سریع پردازش"),
     ]
     await bot.set_my_commands(commands)
-    await bot.set_chat_menu_button(MenuButtonCommands())
+    await bot.set_chat_menu_button(menu_button=MenuButtonCommands())
     log.info("📲 منوی ربات تنظیم شد (دکمه پایین چپ تلگرام)")
 
     # پیام‌های قدیمی که موقع خاموش بودن ربات اومدن رو نادیده بگیر
