@@ -80,6 +80,7 @@ def _mode_kb():
     b.button(text="🎤 وکال خالی", callback_data="m:vocal")
     b.button(text="🎵 آهنگ کامل (فقط مستر)", callback_data="m:full")
     b.button(text="🎛️ وکال + بیت (دو فایل)", callback_data="m:two")
+    b.button(text="🧹 وکال+بیت (جداسازی خودم)", callback_data="m:two_bleed")
     b.button(text="✨ هوشمند (جداسازی خودکار)", callback_data="m:smart")
     b.adjust(2)
     return b.as_markup()
@@ -108,7 +109,9 @@ async def _ask_mode(msg, state, edit=False):
     text = ("🎛️ <b>حالت پردازش رو انتخاب کن:</b>\n\n"
             "🎤 <b>وکال خالی</b> — فقط صدای خودت رو می‌دی، زنجیره کامل وکال اجرا می‌شه\n"
             "🎵 <b>آهنگ کامل</b> — آهنگ بدون جداسازی، فقط مسترینگ ۱۰ پریست\n"
-            "🎛️ <b>وکال + بیت</b> — دو فایل می‌دی، میکس و مستر نهایی انجام می‌شه\n"
+            "🎛️ <b>وکال + بیت</b> — دو فایل می‌دی (وکال تمیز)، میکس و مستر نهایی\n"
+            "🧹 <b>وکال+بیت (جداسازی خودم)</b> — وکالی که خودت جداسازی کردی و "
+            "کمی موزیک باهاش نشت کرده؛ پاکسازی نشت خودکار + میکس و مستر\n"
             "✨ <b>هوشمند</b> — آهنگ کامل می‌دی، ربات خودش وکال رو جدا می‌کنه، "
             "وکال و موزیک جدا پردازش می‌شن و دوباره میکس و مستر می‌شن")
     if edit:
@@ -387,12 +390,12 @@ async def on_mode(cb: CallbackQuery, state: FSMContext):
         return
 
     # منطق حالت‌ها
-    if mode == "two" and not second:
+    if mode in ("two", "two_bleed") and not second:
         await cb.answer("برای این حالت دو فایل لازمه: وکال + بیت")
         await state.set_state(Step.wait_file2)
         await cb.message.answer("فایل دوم (بیت/موزیک) رو بفرست 👇")
         return
-    if mode == "two" and second:
+    if mode in ("two", "two_bleed") and second:
         # اگر فایل اول آهنگ کامل بود و فایل دوم بیت، جای‌گذاری مناسب
         pass
     if mode == "smart":
@@ -440,7 +443,7 @@ async def on_preset(cb: CallbackQuery, state: FSMContext):
         paths = {"vocal": first["path"]}
         if mode == "full":
             paths["full"] = first["path"]
-        elif mode in ("two", "smart"):
+        elif mode in ("two", "two_bleed", "smart"):
             if mode == "smart":
                 await progress.edit_text("✨ در حال جداسازی وکال با هوش مصنوعی "
                                          "(Demucs)...\nاین مرحله سنگین‌ترین مرحله‌ست، "

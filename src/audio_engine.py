@@ -366,6 +366,25 @@ def vocal_chain(x, sr, v):
     rep = []
     y = to_stereo(x).astype(np.float32)
 
+    # ── حالت وکال جداسازی‌شده (نشت‌دار) ──
+    # وکالی که خود کاربر با ابزار جداسازی گرفته، معمولاً کمی از موزیک هم
+    # باهاش آمده. زنجیرهٔ عادی این نشت رو بزرگ می‌کنه (ریورب/اکو/هوا بهش
+    # عمق می‌دن). این حالت: گیت محکم‌تر، HPF بالاتر و افکت‌های فضاساز کمتر
+    if v.get("bleed_safe"):
+        v = {k: vv for k, vv in v.items() if k != "bleed_safe"}
+        v["hpf_hz"] = max(int(v.get("hpf_hz") or 0), 110)
+        v["gate"] = {"threshold_db": -30.0, "ratio": 6.0}
+        if v.get("delay"):
+            v["delay"] = {**v["delay"], "mix": v["delay"].get("mix", 0.1) * 0.5}
+        if v.get("reverb"):
+            v["reverb"] = {**v["reverb"], "wet": v["reverb"].get("wet", 0.12) * 0.6}
+        if v.get("air"):
+            v["air"] = {**v["air"], "mix": v["air"].get("mix", 0.3) * 0.7}
+        if v.get("eq_gloss"):
+            v["eq_gloss"] = {**v["eq_gloss"],
+                             "gain_db": v["eq_gloss"].get("gain_db", 2.0) * 0.75}
+        rep.append("🧹 پاکسازی نشت موزیک (حالت وکال جداسازی‌شده)")
+
     hpf = v.get("hpf_hz")
     if hpf:
         y = HighpassFilter(cutoff_frequency_hz=int(hpf))(y, sr)
@@ -378,7 +397,10 @@ def vocal_chain(x, sr, v):
         rep.append(f"کالیبراسیون سطح ورودی به {wl:g} LUFS")
 
     if v.get("gate", True):
-        y = noise_gate(y, sr)
+        g = v["gate"] if isinstance(v.get("gate"), dict) else {}
+        y = noise_gate(y, sr,
+                       threshold_db=g.get("threshold_db", -50.0),
+                       ratio=g.get("ratio", 3.0))
         rep.append("گیت نرم — حذف نویز و هیس سکوت‌ها")
 
     tune = v.get("tune") or {}
@@ -581,8 +603,8 @@ def master_chain(x, sr, m):
     if -69.0 < l and l > target + 0.25:
         y = y * np.float32(db2lin(target - l))
 
-    # سقف نهایی دقیق (حاشیهٔ ایمنی برای انکود MP3)
-    over = float(lin2db(np.max(np.abs(y)))) - (ceiling - 0.1)
+    # سقف نهایی دقیق (حاشیهٔ ایمنی برای اورشوت انکود MP3)
+    over = float(lin2db(np.max(np.abs(y)))) - (ceiling - 0.5)
     if over > 0:
         y = y * np.float32(db2lin(-over))
     rep.append(f"بلندی نهایی → {target:g} LUFS (سقف {ceiling:g}dB، چند گذر)")

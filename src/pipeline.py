@@ -79,7 +79,11 @@ def separate_stems(path, workdir):
     threads = int(os.getenv("DEMUCS_THREADS", "1"))
     torch.set_num_threads(max(1, threads))
 
-    model = get_model("htdemucs")
+    # مدل قابل تنظیم — پیش‌فرض mdx_extra_q (کوانتیزه و سبک: با ~۱.۵ گیگ رم هم
+    # اجرا می‌شه). اگه رم سرور بالاست (۴ گیگ+) می‌تونی DEMUCS_MODEL=htdemucs
+    # بذاری که کیفیت جداسازی بهتری داره.
+    model_name = os.getenv("DEMUCS_MODEL", "mdx_extra_q")
+    model = get_model(model_name)
     model.eval()
 
     ref = x.mean(0)
@@ -146,10 +150,19 @@ def process_mode(paths, mode, preset, workdir=None):
         x, sr = load_audio(paths["full"])
         y, mrep = master_chain(x, sr, preset.get("master", {}))
         rep = [header, "🎵 زنجیره مسترینگ:"] + mrep
-    elif mode in ("two", "smart"):
+    elif mode in ("two", "smart", "two_bleed"):
+        if mode == "smart" and "vocal" not in paths:
+            # اگه فقط آهنگ کامل داده شده، خودمان جداسازی می‌کنیم
+            vp, ip = separate_stems(paths["full"], workdir)
+            paths = {"vocal": str(vp), "inst": str(ip)}
         vx, sr = load_audio(paths["vocal"])
         ix, _ = load_audio(paths["inst"])
-        v, vrep = vocal_chain(vx, sr, preset.get("vocal", {}))
+        vcfg = dict(preset.get("vocal", {}))
+        if mode in ("two_bleed", "smart"):
+            # وکال جداسازی‌شده (ابزار کاربر یا Demucs) همیشه کمی نشت موزیک
+            # داره — پاکسازی ضدانشتت فعال
+            vcfg["bleed_safe"] = True
+        v, vrep = vocal_chain(vx, sr, vcfg)
         del vx  # وکال خام دیگه لازم نیست — رم آزاد شه
         import gc as _gc
         _gc.collect()

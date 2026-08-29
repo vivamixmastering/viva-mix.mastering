@@ -1,4 +1,4 @@
-# کتابخانه‌های اصلی ربات (برای رندر/سرور ابری)
+# کتابخانه‌های اصلی ربات (برای رندر/ریلوی)
 aiogram>=3.7,<4
 setuptools<81
 numpy
@@ -11,3 +11,10 @@ pyworld
 python-dotenv
 aiohttp
 imageio-ffmpeg
+
+# ── حالت «✨ هوشمند» (جداسازی خودکار وکال با Demucs) ──
+# torch نسخهٔ CPU — نسخهٔ GPU چند گیگabyte اضافه داره و لازم نیست
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.6.0+cpu
+demucs
+diffq
