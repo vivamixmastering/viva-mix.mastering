@@ -96,7 +96,12 @@ def to_mono(x):
     return x.mean(axis=1) if x.ndim == 2 else x
 
 def to_stereo(x):
-    return np.stack([x, x], axis=1) if x.ndim == 1 else x
+    if x.ndim == 1:
+        return np.stack([x, x], axis=1)
+    if x.ndim == 2 and x.shape[1] == 1:  # (نمونه، ۱) → استریوی واقعی
+        return np.repeat(x, 2, axis=1)
+    return x
+
 
 def highpass(x, sr, freq, order=2):
     """فیلتر بالاگذر با pedalboard (موتور float32) — برخلاف scipy.sosfiltfilt
@@ -224,10 +229,68 @@ def noise_gate(x, sr, threshold_db=-50.0, ratio=3.0,
 
 def parallel_compression(x, sr, threshold_db=-28.0, ratio=4.0,
                          attack_ms=0.5, release_ms=150.0, mix=0.25):
-    """کمپرسور موازی (سبک NY) — حجم، چگالی و پایداری وکال بدون له شدن داینامیک"""
+    """کمپرسور موازی واقعی سبک NY — حجم، چگالی و پایداری وکال بدون له شدن داینامیک
+
+    ⚠️ نسخهٔ قدیدی: نسخهٔ لهیده بدون جبران دامنه، خیلی آرام‌تر از سیگنال خشک
+    بود و عملاً چیزی اضافه نمی‌کرد. نسخهٔ NY درست: له‌شدگی شدید + برگردوندن
+    دامنهٔ wet تا سطح dry (تطبیق RMS) → چگالی و گرمای واقعی با mix کم."""
     hard = Compressor(threshold_db=threshold_db, ratio=ratio,
                       attack_ms=attack_ms, release_ms=release_ms)(x, sr)
+    hard = np.asarray(hard, dtype=np.float32)
+    # تطبیق RMS: wet رو به بلندی dry برگردون (و ~۰.۵dB بیشتر — جوهر NY)
+    r_dry = float(np.sqrt(np.mean(np.square(x))) + 1e-12)
+    r_wet = float(np.sqrt(np.mean(np.square(hard))) + 1e-12)
+    if r_wet > 1e-9:
+        hard = hard * np.float32(min((r_dry / r_wet) * db2lin(0.5), 12.0))
     return ((1.0 - mix) * x + mix * hard).astype(np.float32)
+
+
+def calibrate_lufs(x, sr, target=-20.0, max_gain_db=15.0):
+    """آوردن ورودی به سطح کاری استاندارد قبل از کمپرسورها.
+
+    بدون این، آستانهٔ کمپرسورها به سطح ضبط وابسته بود: وکال بلند = ۱۵+dB
+    گین‌ریداکشن پشت سر هم = صدای «مچاله». حالا رفتار همهٔ پریست‌ها روی
+    هر فایلی، هر لوڈی، یکسان و قابل پیش‌بینیه."""
+    l = integrated_lufs(x, sr)
+    if l <= -69.0:
+        return x.astype(np.float32)
+    gain = float(np.clip(target - l, -max_gain_db, max_gain_db))
+    return (x * np.float32(db2lin(gain))).astype(np.float32)
+
+
+def leveler(x, sr, target_rms_db=-18.0, max_gain_db=3.0,
+            attack_ms=300.0, release_ms=1500.0):
+    """لولر نرم (کمپرسور اپتیکال خیلی کُند) — یکدستی بلندی بین جمله‌ها
+    بدون پامپینگ؛ حداکثر ±max_gain_db جابه‌جایی می‌ده."""
+    e = env_follow(x, sr, attack_ms, release_ms)
+    e_db = lin2db(np.maximum(e, np.float32(1e-6)))
+    g_db = np.clip(np.float32(target_rms_db) - e_db,
+                   np.float32(-max_gain_db), np.float32(max_gain_db))
+    gain = db2lin(g_db).astype(np.float32)
+    if x.ndim == 2:
+        gain = gain[:, None]
+    return (x * gain).astype(np.float32)
+
+
+def soft_clip(x, ceiling_db=-2.2, knee_div=2.0):
+    """کلیپر نرم با زانوی C1-پیوسته — پیک‌های تیز رو بی‌صدا گرد می‌کنه.
+
+    زیر نیمی از سقف سیگنال دست‌نخورده رد می‌شه؛ بین زانو و سقف با tanh
+    نرم می‌شینه (بدون پرش، بدون کلیک). تکنیک استاندارد قبل از لیمیتر
+    برای بلندیِ بالا بدون لهیدگی ترنزینت‌ها."""
+    single = x.ndim == 1
+    if single:
+        x = x[:, None]
+    c = float(db2lin(ceiling_db))
+    t = c / knee_div
+    a = np.abs(x)
+    over = a > t
+    y = x.copy()
+    if over.any():
+        knee = t + (c - t) * np.tanh((a - t) / (c - t))
+        y = np.where(over, np.sign(x) * knee, y)
+    return (y[:, 0] if single else y).astype(np.float32)
+
 
 
 def block_apply(func, x, sr, block_s=60.0, overlap_s=1.0):
@@ -301,12 +364,18 @@ def normalize_lufs(x, sr, target=-14.0, ceiling_db=-1.0, max_boost_db=12.0):
 def vocal_chain(x, sr, v):
     """زنجیره کامل وکال بر اساس تنظیمات پریست → (سیگنال, گزارش مراحل)"""
     rep = []
-    y = x.astype(np.float32)
+    y = to_stereo(x).astype(np.float32)
 
     hpf = v.get("hpf_hz")
     if hpf:
         y = HighpassFilter(cutoff_frequency_hz=int(hpf))(y, sr)
         rep.append(f"حذف فرکانس‌های پایین (HPF {int(hpf)}Hz)")
+
+    # کالیبراسیون به سطح کاری — رفتار کمپرسورها مستقل از بلندی ضبط
+    wl = v.get("working_lufs")
+    if wl is not None:
+        y = calibrate_lufs(y, sr, target=float(wl))
+        rep.append(f"کالیبراسیون سطح ورودی به {wl:g} LUFS")
 
     if v.get("gate", True):
         y = noise_gate(y, sr)
@@ -315,17 +384,33 @@ def vocal_chain(x, sr, v):
     tune = v.get("tune") or {}
     if tune.get("strength", 0) > 0:
         try:
-            from src.autotune import autotune
-            yt, reason = autotune(y, sr, strength=tune["strength"],
-                                  snap_cents=tune.get("snap", 50))
+            from src.autotune import autotune, SCALE_NAMES_FA
+            yt, reason = autotune(
+                y, sr,
+                strength=tune["strength"],
+                snap_cents=tune.get("snap", 50),
+                scale=tune.get("scale", "chromatic"),
+                vibrato_keep=float(tune.get("vibrato_keep", 0.85)))
             if yt is not None:
-                y = yt
-                rep.append(f"اصلاح نت نرم (اتوتیون {int(tune['strength'] * 100)}٪)")
+                y = to_stereo(yt)
+                gam = SCALE_NAMES_FA.get(reason, reason) if reason else ""
+                extra = f" • گام: {gam}" if gam and gam != "ok" else ""
+                rep.append(f"اصلاح نت سبک ملوداین {int(tune['strength'] * 100)}٪"
+                           f" (سقف {tune.get('snap', 50)} سنت، تحریر حفظ)"
+                           f"{extra}")
             else:
                 rep.append(f"اصلاح نت: {reason}")
         except Exception as e:
             log.warning("autotune failed: %s", e)
             rep.append("اصلاح نت: خطا — رد شد")
+
+    lev = v.get("leveler")
+    if lev:
+        y = leveler(y, sr,
+                    target_rms_db=lev.get("target_db", -18.0),
+                    max_gain_db=lev.get("max_db", 3.0))
+        rep.append("لولر نرم — یکدستی بلندی بین جمله‌ها (بدون پامپینگ)")
+
 
     c1 = v.get("comp1")
     if c1:
@@ -408,7 +493,13 @@ def vocal_chain(x, sr, v):
 def master_chain(x, sr, m):
     """زنجیره مسترینگ بر اساس تنظیمات پریست → (سیگنال, گزارش مراحل)"""
     rep = []
-    y = x.astype(np.float32)
+    y = to_stereo(x).astype(np.float32)
+
+    # کالیبراسیون میکس به سطح کاری — کمپرسور باس روی هر آهنگ یکسان عمل کنه
+    wl = m.get("working_lufs")
+    if wl is not None:
+        y = calibrate_lufs(y, sr, target=float(wl))
+        rep.append(f"کالیبراسیون میکس به {wl:g} LUFS")
 
     hpf = m.get("hpf_hz")
     if hpf:
@@ -451,12 +542,45 @@ def master_chain(x, sr, m):
         rep.append(f"اشباع نهایی (گرمای کلی {sat['drive_db']}dB)")
 
     ceiling = m.get("ceiling", -1.0)
-    y = Limiter(threshold_db=ceiling - 0.3, release_ms=100)(y, sr)
-    rep.append("لیمیتر (کنترل پیک نهایی)")
-
     target = m.get("lufs", -12.0)
-    y = normalize_lufs(y, sr, target=target, ceiling_db=ceiling)
-    rep.append(f"بلندی نهایی → {target} LUFS (سقف {ceiling}dB)")
+
+    # ── بلندیِ بالا بدون لهیدگی: کلیپر نرم + لیمیتر در چند گذر کوتاه ──
+    # نسخهٔ قدیم همهٔ فشار رو یک‌جا به یک لیمیتر می‌داد (≈۹dB GR = مچاله).
+    # حالا: هر گذر حداکثر ۶dB گین می‌ده، پیک‌ها قبل از لیمیتر توسط کلیپر
+    # نرم گرد می‌شن → گین‌ریداکشن لیمیتر کم می‌مونه و ترنزینت‌ها زنده‌ان.
+    clip = m.get("clip")
+    clip_db = None
+    if isinstance(clip, dict):
+        clip_db = float(clip.get("ceiling_db", -2.2))
+    elif m.get("clip_ceiling_db") is not None:
+        clip_db = float(m.get("clip_ceiling_db"))
+    if clip_db is not None:
+        y = soft_clip(y, ceiling_db=clip_db)
+        rep.append(f"کلیپر نرم (گرد کردن پیک‌ها @ {clip_db:g}dB)")
+
+    rel = m.get("limiter_release_ms", 120)
+    for _ in range(4):
+        l = integrated_lufs(y, sr)
+        if l <= -69.0:
+            break
+        need = target - l
+        if need <= 0.25:
+            break
+        y = y * np.float32(db2lin(min(need * 0.9, 6.0)))
+        if clip_db is not None:
+            y = soft_clip(y, ceiling_db=clip_db)
+        y = Limiter(threshold_db=ceiling, release_ms=rel)(y, sr)
+
+    # تصحیح نهایی: لیمیتر pedalboard گین جبرانی می‌ذاره و ممکنه از هدف رد کنیم
+    l = integrated_lufs(y, sr)
+    if -69.0 < l and l > target + 0.25:
+        y = y * np.float32(db2lin(target - l))
+
+    # سقف نهایی دقیق (حاشیهٔ ایمنی برای انکود MP3)
+    over = float(lin2db(np.max(np.abs(y)))) - (ceiling - 0.1)
+    if over > 0:
+        y = y * np.float32(db2lin(-over))
+    rep.append(f"بلندی نهایی → {target:g} LUFS (سقف {ceiling:g}dB، چند گذر)")
     return y.astype(np.float32), rep
 
 # ══════════════════ میکس وکال + موزیک ══════════════════

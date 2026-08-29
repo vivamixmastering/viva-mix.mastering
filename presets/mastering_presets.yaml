@@ -1,7 +1,13 @@
 # ۱۰ پریست میکس و مستر — بر اساس زنجیره‌های واقعی مهندس‌های معروف دنیا
 # (Serban Ghenea / John Hanes / Chris Lord-Alge / Manny Marroquin / Randy Merrill)
-# زنجیره وکال:  HPF → اتوتیون نرم → ۱۱۷۶ → LA-2A → EQ → دی‌اسر → گرماساز → هوا → اکو → ریورب
-# زنجیره مستر: HPF → EQ اصلاحی → کمپرسور باس → EQ تُنال → پهنای استریو → اشباع → لیمیتر → LUFS
+# زنجیره وکال:  HPF → کالیبراسیون → اتوتیون ملوداینی (تشخیص گام + حفظ تحریر)
+#   → لولر → ۱۱۷۶ → LA-2A → کمپرسور موازی NY → EQ → دی‌اسر → گرماساز → هوا → اکو → ریورب
+# زنجیره مستر:  کالیبراسیون → HPF → EQ اصلاحی → کمپرسور باس → EQ تُنال → پهنا
+#   → اشباع → کلیپر نرم → لیمیتر چندگذره → LUFS
+#
+# ⚠️ از این نسخه همهٔ پریست‌ها «کالیبره» هستن: ورودی اول به working_lufs
+# آورده می‌شه، بعد آستانهٔ کمپرسورها معنای ثابت دارن — نتیجه روی هر فایلی
+# یکسانه و دیگه وکال بلند «مچاله» نمی‌شه.
 presets:
   # ۱ ──────────────────────────────────────────────
   - id: pop_radio
@@ -9,14 +15,15 @@ presets:
     desc: "براق و جلو، به سبک وکال‌های رادیویی سران گنه‌آ — برای پاپ روز"
     vocal:
       hpf_hz: 100
-      tune: {strength: 0.55, snap: 50}
-      comp1: {threshold_db: -24, ratio: 4, attack_ms: 2, release_ms: 60}
-      comp2: {threshold_db: -22, ratio: 3, attack_ms: 12, release_ms: 220}
+      working_lufs: -20
+      tune: {strength: 0.55, snap: 50, scale: chromatic, vibrato_keep: 0.85}
+      comp1: {threshold_db: -13, ratio: 3.5, attack_ms: 2.5, release_ms: 60}
+      comp2: {threshold_db: -15, ratio: 2.6, attack_ms: 12, release_ms: 220}
+      parallel: {threshold_db: -38, ratio: 8, mix: 0.22}
       eq_low_shelf: {freq: 110, gain_db: 2.5}
       eq_dip: {freq: 1800, gain_db: -2.5, q: 1.6}
       eq_presence: {freq: 3200, gain_db: 3.0, q: 1.0}
       eq_air_shelf: {freq: 12000, gain_db: 2.5}
-      parallel: {threshold_db: -28, ratio: 4, mix: 0.25}
       deess: {freq: 6500, threshold_db: -24, ratio: 5, makeup_db: 1.5}
       warmth: {drive_db: 2.5, mix: 0.25}
       air: {freq: 10000, drive_db: 2.0, mix: 0.3}
@@ -25,13 +32,15 @@ presets:
       out_lufs: -18
     mix: {vocal_gain_db: 1.0, inst_gain_db: -3.5, duck_db: 3.5}
     master:
+      working_lufs: -18
       hpf_hz: 25
       eq_dip: {freq: 300, gain_db: -1.0, q: 1.2}
-      bus_comp: {threshold_db: -20, ratio: 1.8, attack_ms: 20, release_ms: 250}
+      bus_comp: {threshold_db: -14, ratio: 1.8, attack_ms: 20, release_ms: 250}
       eq_low_shelf: {freq: 80, gain_db: 1.5}
       eq_high_shelf: {freq: 10000, gain_db: 1.0}
       width: 1.10
       sat: {drive_db: 1.5, mix: 0.15}
+      clip: {ceiling_db: -2.2}
       lufs: -9
       ceiling: -1.0
   # ۲ ──────────────────────────────────────────────
@@ -40,14 +49,15 @@ presets:
     desc: "بلند و پانچی برای EDM و پاپ کلابی — بیس محکم، -8 LUFS"
     vocal:
       hpf_hz: 110
-      tune: {strength: 0.6, snap: 45}
-      comp1: {threshold_db: -26, ratio: 6, attack_ms: 1, release_ms: 40}
-      comp2: {threshold_db: -24, ratio: 4, attack_ms: 8, release_ms: 150}
+      working_lufs: -20
+      tune: {strength: 0.6, snap: 45, scale: chromatic, vibrato_keep: 0.8}
+      comp1: {threshold_db: -11, ratio: 5, attack_ms: 1, release_ms: 40}
+      comp2: {threshold_db: -13, ratio: 3.5, attack_ms: 8, release_ms: 150}
+      parallel: {threshold_db: -36, ratio: 10, mix: 0.28}
       eq_low_shelf: {freq: 120, gain_db: 1.5}
       eq_dip: {freq: 2000, gain_db: -2.0, q: 1.5}
       eq_presence: {freq: 3500, gain_db: 3.0, q: 1.0}
       eq_air_shelf: {freq: 14000, gain_db: 1.5}
-      parallel: {threshold_db: -30, ratio: 6, mix: 0.3}
       deess: {threshold_db: -22, ratio: 6, freq: 6000}
       warmth: {drive_db: 3.5, mix: 0.35}
       air: {freq: 11000, drive_db: 2.5, mix: 0.35}
@@ -56,13 +66,15 @@ presets:
       out_lufs: -18
     mix: {vocal_gain_db: 1.0, inst_gain_db: -4.0, duck_db: 3.5}
     master:
+      working_lufs: -18
       hpf_hz: 28
       eq_dip: {freq: 300, gain_db: -1.5, q: 1.2}
-      bus_comp: {threshold_db: -22, ratio: 2.0, attack_ms: 10, release_ms: 200}
+      bus_comp: {threshold_db: -14, ratio: 2.0, attack_ms: 10, release_ms: 200}
       eq_low_shelf: {freq: 60, gain_db: 2.0}
       eq_high_shelf: {freq: 12000, gain_db: 1.5}
       width: 1.12
       sat: {drive_db: 2.5, mix: 0.2}
+      clip: {ceiling_db: -2.0}
       lufs: -8
       ceiling: -1.0
   # ۳ ──────────────────────────────────────────────
@@ -71,14 +83,15 @@ presets:
     desc: "نرم و مخملی با ریورب لش — کمپرس ملایم ۲.۵:۱ برای حفظ حس"
     vocal:
       hpf_hz: 85
-      tune: {strength: 0.45, snap: 55}
-      comp1: {threshold_db: -22, ratio: 2.5, attack_ms: 6, release_ms: 120}
-      comp2: {threshold_db: -20, ratio: 2.5, attack_ms: 20, release_ms: 350}
+      working_lufs: -20
+      tune: {strength: 0.45, snap: 55, scale: chromatic, vibrato_keep: 0.9}
+      comp1: {threshold_db: -14, ratio: 2.5, attack_ms: 6, release_ms: 120}
+      comp2: {threshold_db: -16, ratio: 2.2, attack_ms: 20, release_ms: 350}
+      parallel: {threshold_db: -40, ratio: 6, mix: 0.15}
       eq_low_shelf: {freq: 100, gain_db: 3.0}
       eq_dip: {freq: 1500, gain_db: -1.5, q: 1.4}
       eq_presence: {freq: 2800, gain_db: 1.5, q: 1.0}
       eq_air_shelf: {freq: 16000, gain_db: 1.0}
-      parallel: {threshold_db: -26, ratio: 2.5, mix: 0.15}
       deess: {threshold_db: -25, ratio: 4, freq: 5800, makeup_db: 1.0}
       warmth: {drive_db: 3.0, mix: 0.4}
       air: {freq: 10000, drive_db: 1.5, mix: 0.25}
@@ -87,12 +100,14 @@ presets:
       out_lufs: -18
     mix: {vocal_gain_db: 0.0, inst_gain_db: -2.0, duck_db: 1.5}
     master:
+      working_lufs: -18
       hpf_hz: 24
-      bus_comp: {threshold_db: -20, ratio: 1.5, attack_ms: 30, release_ms: 300}
+      bus_comp: {threshold_db: -15, ratio: 1.5, attack_ms: 30, release_ms: 300}
       eq_low_shelf: {freq: 90, gain_db: 2.0}
       eq_high_shelf: {freq: 12000, gain_db: 0.5}
       width: 1.06
       sat: {drive_db: 2.0, mix: 0.25}
+      clip: {ceiling_db: -2.5}
       lufs: -10
       ceiling: -1.0
   # ۴ ──────────────────────────────────────────────
@@ -101,9 +116,10 @@ presets:
     desc: "شفاف و دست‌نخورده — کمترین فشرده‌سازی، برای آهنگ‌های آکوستیک و لایو"
     vocal:
       hpf_hz: 70
-      tune: {strength: 0.3, snap: 60}
-      comp1: {threshold_db: -20, ratio: 2, attack_ms: 8, release_ms: 150}
-      comp2: {threshold_db: -18, ratio: 2, attack_ms: 25, release_ms: 400}
+      working_lufs: -20
+      tune: {strength: 0.3, snap: 60, scale: chromatic, vibrato_keep: 0.9}
+      comp1: {threshold_db: -14, ratio: 2, attack_ms: 8, release_ms: 150}
+      comp2: {threshold_db: -16, ratio: 2, attack_ms: 25, release_ms: 400}
       eq_low_shelf: {freq: 90, gain_db: 1.5}
       eq_dip: {freq: 1600, gain_db: -1.0, q: 1.3}
       eq_presence: {freq: 4000, gain_db: 1.0, q: 1.0}
@@ -116,12 +132,14 @@ presets:
       out_lufs: -18
     mix: {vocal_gain_db: 0.0, inst_gain_db: -1.0, duck_db: 1.0}
     master:
+      working_lufs: -18
       hpf_hz: 22
-      bus_comp: {threshold_db: -18, ratio: 1.4, attack_ms: 30, release_ms: 350}
+      bus_comp: {threshold_db: -13, ratio: 1.4, attack_ms: 30, release_ms: 350}
       eq_low_shelf: {freq: 70, gain_db: 1.0}
       eq_high_shelf: {freq: 12000, gain_db: 0.5}
       width: 1.04
       sat: {drive_db: 1.0, mix: 0.1}
+      clip: {ceiling_db: -2.5}
       lufs: -12
       ceiling: -1.0
   # ۵ ──────────────────────────────────────────────
@@ -130,14 +148,15 @@ presets:
     desc: "ریورب بزرگ و هوای زیاد — برای تصنیف و بالادهای عاشقانه"
     vocal:
       hpf_hz: 80
-      tune: {strength: 0.5, snap: 50}
-      comp1: {threshold_db: -22, ratio: 3, attack_ms: 5, release_ms: 100}
-      comp2: {threshold_db: -20, ratio: 2.5, attack_ms: 15, release_ms: 300}
+      working_lufs: -20
+      tune: {strength: 0.5, snap: 50, scale: chromatic, vibrato_keep: 0.9}
+      comp1: {threshold_db: -13, ratio: 3, attack_ms: 5, release_ms: 100}
+      comp2: {threshold_db: -15, ratio: 2.5, attack_ms: 15, release_ms: 300}
+      parallel: {threshold_db: -40, ratio: 6, mix: 0.18}
       eq_low_shelf: {freq: 110, gain_db: 2.0}
       eq_dip: {freq: 2000, gain_db: -2.0, q: 1.5}
       eq_presence: {freq: 3000, gain_db: 2.0, q: 1.0}
       eq_air_shelf: {freq: 15000, gain_db: 2.5}
-      parallel: {threshold_db: -26, ratio: 3, mix: 0.15}
       deess: {threshold_db: -24, ratio: 4, freq: 6000}
       warmth: {drive_db: 2.0, mix: 0.3}
       air: {freq: 12000, drive_db: 2.5, mix: 0.4}
@@ -146,44 +165,50 @@ presets:
       out_lufs: -18
     mix: {vocal_gain_db: 0.5, inst_gain_db: -2.0, duck_db: 2.0}
     master:
+      working_lufs: -18
       hpf_hz: 25
-      bus_comp: {threshold_db: -20, ratio: 1.6, attack_ms: 25, release_ms: 280}
+      bus_comp: {threshold_db: -14, ratio: 1.6, attack_ms: 25, release_ms: 280}
       eq_low_shelf: {freq: 90, gain_db: 1.5}
       eq_high_shelf: {freq: 12000, gain_db: 1.5}
       width: 1.08
       sat: {drive_db: 1.5, mix: 0.15}
+      clip: {ceiling_db: -2.5}
       lufs: -11
       ceiling: -1.0
   # ۶ ──────────────────────────────────────────────
   - id: persian_pop
     name: "🌟 پاپ ایرانی"
-    desc: "وکال جلو و درخشان روی میکس تمیز — سبک پاپ فارسی امروز"
+    desc: "وکال جلو، گرم و درخشان — اتوتیون ملوداینی با تشخیص خودکار گام (ماژور/مینور/بایاتی)، حفظ تحریر، حجم و چگالی NY و بلندی بالا بدون لهیدگی"
     vocal:
       hpf_hz: 95
-      tune: {strength: 0.5, snap: 50}
-      comp1: {threshold_db: -24, ratio: 4, attack_ms: 2.5, release_ms: 55}
-      comp2: {threshold_db: -22, ratio: 3, attack_ms: 10, release_ms: 200}
-      eq_low_shelf: {freq: 115, gain_db: 2.0}
-      eq_dip: {freq: 1800, gain_db: -2.5, q: 1.6}
-      eq_presence: {freq: 3300, gain_db: 3.0, q: 1.0}
-      eq_air_shelf: {freq: 13000, gain_db: 2.5}
-      parallel: {threshold_db: -28, ratio: 4, mix: 0.25}
-      deess: {threshold_db: -23, ratio: 5, freq: 6200, makeup_db: 1.0}
-      warmth: {drive_db: 2.5, mix: 0.3}
-      air: {freq: 10500, drive_db: 2.0, mix: 0.32}
-      delay: {time_s: 0.19, feedback: 0.28, mix: 0.09}
-      reverb: {room: 0.35, damping: 0.5, wet: 0.14}
-      out_lufs: -18
-    mix: {vocal_gain_db: 1.5, inst_gain_db: -3.5, duck_db: 3.0}
+      working_lufs: -20
+      tune: {strength: 0.85, snap: 60, scale: auto, vibrato_keep: 0.85}
+      leveler: {target_db: -19, max_db: 2.5}
+      comp1: {threshold_db: -13, ratio: 4, attack_ms: 2.5, release_ms: 55}
+      comp2: {threshold_db: -15, ratio: 2.8, attack_ms: 12, release_ms: 220}
+      parallel: {threshold_db: -38, ratio: 10, mix: 0.22}
+      eq_low_shelf: {freq: 115, gain_db: 2.2}
+      eq_dip: {freq: 1800, gain_db: -2.2, q: 1.6}
+      eq_presence: {freq: 3300, gain_db: 3.5, q: 1.0}
+      eq_air_shelf: {freq: 13000, gain_db: 3.0}
+      deess: {threshold_db: -21, ratio: 6, freq: 6600}
+      warmth: {drive_db: 3.5, mix: 0.35}
+      air: {freq: 11000, drive_db: 2.5, mix: 0.35}
+      delay: {time_s: 0.21, feedback: 0.25, mix: 0.08}
+      reverb: {room: 0.35, damping: 0.55, wet: 0.12}
+      out_lufs: -17
+    mix: {vocal_gain_db: 1.0, inst_gain_db: -3.0, duck_db: 2.5}
     master:
+      working_lufs: -18
       hpf_hz: 25
-      eq_dip: {freq: 350, gain_db: -1.2, q: 1.2}
-      bus_comp: {threshold_db: -20, ratio: 1.8, attack_ms: 20, release_ms: 240}
+      eq_dip: {freq: 320, gain_db: -1.2, q: 1.2}
+      bus_comp: {threshold_db: -14, ratio: 1.7, attack_ms: 20, release_ms: 240}
       eq_low_shelf: {freq: 85, gain_db: 1.5}
-      eq_high_shelf: {freq: 10500, gain_db: 1.0}
+      eq_high_shelf: {freq: 11000, gain_db: 1.0}
       width: 1.10
-      sat: {drive_db: 1.8, mix: 0.18}
-      lufs: -10
+      sat: {drive_db: 2.0, mix: 0.2}
+      clip: {ceiling_db: -2.2}
+      lufs: -9.5
       ceiling: -1.0
   # ۷ ──────────────────────────────────────────────
   - id: vintage_tape
@@ -191,9 +216,10 @@ presets:
     desc: "صدای نواری گرم دهه ۷۰ — اشباع زیاد و فرکانس بالا نرم‌تر"
     vocal:
       hpf_hz: 90
-      tune: {strength: 0.4, snap: 55}
-      comp1: {threshold_db: -22, ratio: 4, attack_ms: 4, release_ms: 80}
-      comp2: {threshold_db: -20, ratio: 2.5, attack_ms: 18, release_ms: 300}
+      working_lufs: -20
+      tune: {strength: 0.4, snap: 55, scale: chromatic, vibrato_keep: 0.9}
+      comp1: {threshold_db: -13, ratio: 3.5, attack_ms: 4, release_ms: 80}
+      comp2: {threshold_db: -15, ratio: 2.5, attack_ms: 18, release_ms: 300}
       eq_low_shelf: {freq: 100, gain_db: 2.5}
       eq_dip: {freq: 2500, gain_db: -1.5, q: 1.4}
       eq_presence: {freq: 2500, gain_db: 1.5, q: 1.0}
@@ -206,12 +232,14 @@ presets:
       out_lufs: -18
     mix: {vocal_gain_db: 0.0, inst_gain_db: -1.5, duck_db: 1.5}
     master:
+      working_lufs: -18
       hpf_hz: 30
-      bus_comp: {threshold_db: -18, ratio: 1.6, attack_ms: 30, release_ms: 400}
+      bus_comp: {threshold_db: -13, ratio: 1.6, attack_ms: 30, release_ms: 400}
       eq_low_shelf: {freq: 70, gain_db: 1.0}
       eq_high_shelf: {freq: 12000, gain_db: -0.5}
       width: 1.05
       sat: {drive_db: 3.0, mix: 0.35}
+      clip: {ceiling_db: -2.5}
       lufs: -11
       ceiling: -1.0
   # ۸ ──────────────────────────────────────────────
@@ -220,9 +248,10 @@ presets:
     desc: "تاریک و نوستالژیک با ریورب مه‌آلود — حس اتاق خوابی"
     vocal:
       hpf_hz: 120
-      tune: {strength: 0.35, snap: 60}
-      comp1: {threshold_db: -20, ratio: 3, attack_ms: 5, release_ms: 100}
-      comp2: {threshold_db: -18, ratio: 2, attack_ms: 20, release_ms: 350}
+      working_lufs: -20
+      tune: {strength: 0.35, snap: 60, scale: chromatic, vibrato_keep: 0.9}
+      comp1: {threshold_db: -14, ratio: 2.5, attack_ms: 5, release_ms: 100}
+      comp2: {threshold_db: -16, ratio: 2, attack_ms: 20, release_ms: 350}
       eq_low_shelf: {freq: 150, gain_db: 1.0}
       eq_dip: {freq: 2000, gain_db: -2.0, q: 1.5}
       eq_presence: {freq: 4000, gain_db: -1.0, q: 1.0}
@@ -235,12 +264,14 @@ presets:
       out_lufs: -18
     mix: {vocal_gain_db: 0.0, inst_gain_db: -1.0, duck_db: 1.0}
     master:
+      working_lufs: -18
       hpf_hz: 28
-      bus_comp: {threshold_db: -18, ratio: 1.5, attack_ms: 30, release_ms: 300}
+      bus_comp: {threshold_db: -13, ratio: 1.5, attack_ms: 30, release_ms: 300}
       eq_low_shelf: {freq: 100, gain_db: 1.0}
       eq_high_shelf: {freq: 8000, gain_db: -1.0}
       width: 1.12
       sat: {drive_db: 3.0, mix: 0.3}
+      clip: {ceiling_db: -2.5}
       lufs: -13
       ceiling: -1.0
   # ۹ ──────────────────────────────────────────────
@@ -249,14 +280,15 @@ presets:
     desc: "استاندارد پخش (EBU R128) — بلندی یکنواخت ۱۴-LUFS برای رادیو و صداوسیما"
     vocal:
       hpf_hz: 100
-      tune: {strength: 0.45, snap: 50}
-      comp1: {threshold_db: -24, ratio: 4, attack_ms: 3, release_ms: 60}
-      comp2: {threshold_db: -22, ratio: 3, attack_ms: 12, release_ms: 220}
+      working_lufs: -20
+      tune: {strength: 0.45, snap: 50, scale: chromatic, vibrato_keep: 0.85}
+      comp1: {threshold_db: -13, ratio: 3.5, attack_ms: 3, release_ms: 60}
+      comp2: {threshold_db: -15, ratio: 2.6, attack_ms: 12, release_ms: 220}
+      parallel: {threshold_db: -38, ratio: 8, mix: 0.2}
       eq_low_shelf: {freq: 120, gain_db: 1.5}
       eq_dip: {freq: 1800, gain_db: -1.5, q: 1.4}
       eq_presence: {freq: 3000, gain_db: 2.0, q: 1.0}
       eq_air_shelf: {freq: 12000, gain_db: 1.5}
-      parallel: {threshold_db: -28, ratio: 4, mix: 0.2}
       deess: {threshold_db: -24, ratio: 5, freq: 6500}
       warmth: {drive_db: 2.0, mix: 0.25}
       air: {freq: 10000, drive_db: 1.5, mix: 0.25}
@@ -265,12 +297,14 @@ presets:
       out_lufs: -18
     mix: {vocal_gain_db: 0.0, inst_gain_db: -2.0, duck_db: 2.0}
     master:
+      working_lufs: -18
       hpf_hz: 30
-      bus_comp: {threshold_db: -18, ratio: 2.0, attack_ms: 20, release_ms: 250}
+      bus_comp: {threshold_db: -14, ratio: 2.0, attack_ms: 20, release_ms: 250}
       eq_low_shelf: {freq: 80, gain_db: 1.0}
       eq_high_shelf: {freq: 11000, gain_db: 1.0}
       width: 1.05
       sat: {drive_db: 1.5, mix: 0.15}
+      clip: {ceiling_db: -2.5}
       lufs: -14
       ceiling: -1.0
   # ۱۰ ─────────────────────────────────────────────
@@ -279,9 +313,10 @@ presets:
     desc: "پهنای استریو بزرگ و داینامیک — برای تیزر و موسیقی فیلم"
     vocal:
       hpf_hz: 85
-      tune: {strength: 0.35, snap: 55}
-      comp1: {threshold_db: -20, ratio: 2.5, attack_ms: 6, release_ms: 120}
-      comp2: {threshold_db: -18, ratio: 2, attack_ms: 20, release_ms: 350}
+      working_lufs: -20
+      tune: {strength: 0.35, snap: 55, scale: chromatic, vibrato_keep: 0.9}
+      comp1: {threshold_db: -14, ratio: 2.5, attack_ms: 6, release_ms: 120}
+      comp2: {threshold_db: -16, ratio: 2, attack_ms: 20, release_ms: 350}
       eq_low_shelf: {freq: 100, gain_db: 2.0}
       eq_dip: {freq: 1600, gain_db: -1.5, q: 1.3}
       eq_presence: {freq: 3000, gain_db: 1.5, q: 1.0}
@@ -294,11 +329,13 @@ presets:
       out_lufs: -18
     mix: {vocal_gain_db: 0.0, inst_gain_db: -2.0, duck_db: 1.5}
     master:
+      working_lufs: -18
       hpf_hz: 20
-      bus_comp: {threshold_db: -18, ratio: 1.4, attack_ms: 30, release_ms: 400}
+      bus_comp: {threshold_db: -12, ratio: 1.4, attack_ms: 30, release_ms: 400}
       eq_low_shelf: {freq: 80, gain_db: 1.0}
       eq_high_shelf: {freq: 15000, gain_db: 1.5}
       width: 1.18
       sat: {drive_db: 1.2, mix: 0.12}
+      clip: {ceiling_db: -2.5}
       lufs: -14
       ceiling: -1.0
