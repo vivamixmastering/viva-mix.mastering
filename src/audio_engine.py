@@ -445,6 +445,11 @@ def vocal_chain(x, sr, v):
         y = PeakFilter(cutoff_frequency_hz=pr["freq"], gain_db=pr["gain_db"],
                        q=pr.get("q", 1.0))(y, sr)
         rep.append(f"حضور صدا ({pr['gain_db']:+g}dB @ {pr['freq']}Hz)")
+    gl = v.get("eq_gloss")
+    if gl:
+        y = PeakFilter(cutoff_frequency_hz=gl["freq"], gain_db=gl["gain_db"],
+                       q=gl.get("q", 0.9))(y, sr)
+        rep.append(f"جلا و براقیت ({gl['gain_db']:+g}dB @ {gl['freq']}Hz)")
     airs = v.get("eq_air_shelf")
     if airs:
         y = HighShelfFilter(cutoff_frequency_hz=airs["freq"],

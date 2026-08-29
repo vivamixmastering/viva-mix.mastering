@@ -178,35 +178,36 @@ presets:
   # ۶ ──────────────────────────────────────────────
   - id: persian_pop
     name: "🌟 پاپ ایرانی"
-    desc: "وکال جلو، گرم و درخشان — اتوتیون ملوداینی با تشخیص خودکار گام (ماژور/مینور/بایاتی)، حفظ تحریر، حجم و چگالی NY و بلندی بالا بدون لهیدگی"
+    desc: "وکال جلو، گرم و براق — اتوتیون ملوداینی محسوس، کمپرس لطیف و اپتیکال، جلا و شفافیت خاص (سبک مسترهای پاپ فارسی)"
     vocal:
       hpf_hz: 95
       working_lufs: -20
-      tune: {strength: 0.85, snap: 60, scale: auto, vibrato_keep: 0.85}
+      tune: {strength: 0.9, snap: 65, scale: auto, vibrato_keep: 0.8}
       leveler: {target_db: -19, max_db: 2.5}
-      comp1: {threshold_db: -13, ratio: 4, attack_ms: 2.5, release_ms: 55}
-      comp2: {threshold_db: -15, ratio: 2.8, attack_ms: 12, release_ms: 220}
-      parallel: {threshold_db: -38, ratio: 10, mix: 0.22}
-      eq_low_shelf: {freq: 115, gain_db: 2.2}
+      comp1: {threshold_db: -13, ratio: 3, attack_ms: 4, release_ms: 85}
+      comp2: {threshold_db: -15, ratio: 2.2, attack_ms: 18, release_ms: 320}
+      parallel: {threshold_db: -38, ratio: 10, mix: 0.26}
+      eq_low_shelf: {freq: 115, gain_db: 2.0}
       eq_dip: {freq: 1800, gain_db: -2.2, q: 1.6}
-      eq_presence: {freq: 3300, gain_db: 3.5, q: 1.0}
-      eq_air_shelf: {freq: 13000, gain_db: 3.0}
-      deess: {threshold_db: -21, ratio: 6, freq: 6600}
-      warmth: {drive_db: 3.5, mix: 0.35}
-      air: {freq: 11000, drive_db: 2.5, mix: 0.35}
+      eq_presence: {freq: 3400, gain_db: 4.0, q: 0.9}
+      eq_gloss: {freq: 9500, gain_db: 2.5, q: 0.9}
+      eq_air_shelf: {freq: 13500, gain_db: 3.5}
+      deess: {threshold_db: -21.5, ratio: 6, freq: 7300}
+      warmth: {drive_db: 3.0, mix: 0.3}
+      air: {freq: 12000, drive_db: 3.0, mix: 0.4}
       delay: {time_s: 0.21, feedback: 0.25, mix: 0.08}
-      reverb: {room: 0.35, damping: 0.55, wet: 0.12}
+      reverb: {room: 0.35, damping: 0.6, wet: 0.12}
       out_lufs: -17
-    mix: {vocal_gain_db: 1.0, inst_gain_db: -3.0, duck_db: 2.5}
+    mix: {vocal_gain_db: 1.5, inst_gain_db: -3.0, duck_db: 3.0}
     master:
       working_lufs: -18
       hpf_hz: 25
       eq_dip: {freq: 320, gain_db: -1.2, q: 1.2}
       bus_comp: {threshold_db: -14, ratio: 1.7, attack_ms: 20, release_ms: 240}
       eq_low_shelf: {freq: 85, gain_db: 1.5}
-      eq_high_shelf: {freq: 11000, gain_db: 1.0}
-      width: 1.10
-      sat: {drive_db: 2.0, mix: 0.2}
+      eq_high_shelf: {freq: 11000, gain_db: 1.5}
+      width: 1.12
+      sat: {drive_db: 2.0, mix: 0.18}
       clip: {ceiling_db: -2.2}
       lufs: -9.5
       ceiling: -1.0
