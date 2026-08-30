@@ -38,13 +38,20 @@ HPF → کالیبراسیون سطح ورودی → اصلاح نت **سبک م
 
 ## 🔌 کلید روشن/خاموش روی خود ربات
 
-- `/on` → متغیر `BOT_POWER` رو از طریق **API رندر** روی `on` می‌ذاره و سرویس رو دوباره راه می‌ندازه
+- `/on` → متغیر `BOT_POWER` رو از طریق **API ابری** روی `on` می‌ذاره و سرویس رو دوباره راه می‌ندازه
 - `/off` → ربات می‌ره به حالت خواب (هیچ پردازشی انجام نمی‌شه، فقط `/on` جواب می‌ده)
 
 چرا کامل suspend نمی‌شه؟ چون اگه سرویس کلاً خاموش بشه، دیگه `/on` رو هم نمی‌شنوه! 😄
-برای خاموشی کامل، از داشبورد رندر «Suspend» بزن.
+برای خاموشی کامل، از داشبورد «Suspend» بزن.
 
-> اگه `RENDER_API_KEY` تنظیم نشه، کلید فقط توی حافظه عمل می‌کنه (که با خواب خودکار رندر
+**پلتفرم‌های پشتیبانی‌شده (اولویت با Railway):**
+
+| پلتفرم | متغیرهای لازم | توضیح |
+|---|---|---|
+| **Railway** | `RAILWAY_API_TOKEN` | شناسه‌های `RAILWAY_PROJECT_ID` / `ENVIRONMENT_ID` / `SERVICE_ID` رو خود Railway تزریق می‌کنه — فقط توکن رو از [railway.com/account/tokens](https://railway.com/account/tokens) بگیر و روی سرویس بذار |
+| **Render** | `RENDER_API_KEY` + `RENDER_SERVICE_ID` | روش قبلی — از داشبورد رندر: **Account Settings → API Keys** |
+
+> اگه هیچ کلید API تنظیم نشه، کلید فقط توی حافظه عمل می‌کنه (که با خواب خودکار
 > روی پلن رایگان عملاً همون کار رو می‌کنه).
 
 ---
@@ -81,6 +88,20 @@ git push -u origin main
 | `RENDER_SERVICE_ID` | (اختیاری) شناسه سرویس — توی آدرس داشبورد سرویس `https://dashboard.render.com/web/srv-XXXX` |
 
 4. دکمه **Deploy** — تمام! ربات آنلاینه 🎉
+
+### ۴) دیپلوی روی Railway (پیشنهادی)
+
+1. برو به [railway.com](https://railway.com) → **New Project** → **Deploy from GitHub repo**
+2. ریپوی `viva-mix.mastering` رو انتخاب کن — فایل `railway.json` خودش build و start رو می‌سازه
+3. توی تب **Variables** این متغیرها رو تنظیم کن:
+
+| متغیر | مقدار |
+|---|---|
+| `BOT_TOKEN` | توکن BotFather |
+| `ADMIN_ID` | آیدی عددی خودت از [@userinfobot](https://t.me/userinfobot) (فقط تو بتونی `/on` و `/off` بزنی) |
+| `BOT_POWER` | `on` (پیش‌فرض) |
+| `SMART_MODE` | برای حالت جداسازی هوشمند `1` بذار؛ اگه نمی‌خوای `0` |
+| `RAILWAY_API_TOKEN` | برای کلید واقعی روشن/خاموش — از [railway.com/account/tokens](https://railway.com/account/tokens) |
 
 ### 🧠 حافظه رم — کدوم سرور برای کدوم حالت؟
 
@@ -169,5 +190,5 @@ mixmaster-bot/
     ├── audio_engine.py    ← هسته صدا (EQ، کمپرسور، دی‌اسر، اشباع، LUFS، ...)
     ├── autotune.py        ← اصلاح نت نرم (جایگزین اتوتیون/ملوداین)
     ├── pipeline.py        ← اجرای حالت‌ها + جداسازی Demucs
-    └── power.py           ← کلید روشن/خاموش (API رندر)
+    └── power.py           ← کلید روشن/خاموش (API Railway / Render)
 ```

@@ -213,11 +213,11 @@ async def cmd_on(msg: Message):
     await msg.answer("⚡️ در حال روشن کردن سرویس...")
     res = await power.set_power(True)
     if res is None:
-        await msg.answer("✅ ربات روشنه (بدون API رندر).")
+        await msg.answer("✅ ربات روشنه (بدون API ابری).")
     elif res == "ok":
-        await msg.answer("✅ روشن شد! رندر داره سرویس رو دوباره راه می‌ندازه — چند ثانیه صبر کن.")
+        await msg.answer("✅ روشن شد! سرویس ابری داره دوباره راه می‌افته — چند ثانیه صبر کن.")
     else:
-        await msg.answer(f"⚠️ کلید روشن شد ولی API رندر خطا داد:\n{res}")
+        await msg.answer(f"⚠️ کلید روشن شد ولی API ابری خطا داد:\n{res}")
 
 
 @router.message(Command("off"))
@@ -228,12 +228,12 @@ async def cmd_off(msg: Message):
     await msg.answer("🌙 در حال خاموش کردن سرویس...")
     res = await power.set_power(False)
     if res is None:
-        await msg.answer("😴 ربات در حالت خوابه (بدون API رندر). با /on برمی‌گرده.")
+        await msg.answer("😴 ربات در حالت خوابه (بدون API ابری). با /on برمی‌گرده.")
     elif res == "ok":
-        await msg.answer("😴 خاموش شد! رندر داره سرویس رو دوباره راه می‌ندازه — "
+        await msg.answer("😴 خاموش شد! سرویس ابری داره دوباره راه می‌افته — "
                          "بعد از چند ثانیه فقط /on جواب می‌ده.")
     else:
-        await msg.answer(f"⚠️ ربات خاموش شد ولی API رندر خطا داد:\n{res}")
+        await msg.answer(f"⚠️ ربات خاموش شد ولی API ابری خطا داد:\n{res}")
 
 
 @router.message(Command("test"))
