@@ -13,6 +13,11 @@ def lufs(x, sr=SR):
         return -70.0
 
 
+def db(x):
+    """تبدیل dB به ضریب دامنه (برای ساخت سیگنال تست با سطح مشخص)."""
+    return 10 ** (x / 20.0)
+
+
 def peak_db(x):
     return 20 * np.log10(np.max(np.abs(x)) + 1e-12)
 
