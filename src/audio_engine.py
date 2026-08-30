@@ -603,6 +603,16 @@ def master_chain(x, sr, m):
                        attack_ms=bc["attack_ms"], release_ms=bc["release_ms"])(y, sr)
         rep.append(f"کمپرسور باس ({bc['ratio']}:۱) — چسبندگی کل آهنگ")
 
+    # کمپرسور موازی باس مستر (NY) — پانچ و ضخامت بدون له شدن ترنزینت‌ها
+    bp = m.get("bus_parallel")
+    if bp:
+        y = parallel_compression(y, sr,
+                                 bp.get("threshold_db", -30.0),
+                                 bp.get("ratio", 2.0),
+                                 bp.get("mix", 0.2))
+        rep.append(f"کمپرسور موازی مستر — پانچ و ضخامت "
+                   f"({int(bp.get('mix', 0.2) * 100)}٪)")
+
     ls = m.get("eq_low_shelf")
     if ls:
         y = LowShelfFilter(cutoff_frequency_hz=ls["freq"],

@@ -4,18 +4,19 @@ handlers.py — منطق کامل ربات تلگرام
 
 کامندها:
   /start /help   — راهنما
+  /match         — تطبیق تُنال با آهنگ مرجع (Match EQ)
   /on /off       — کلید روشن/خاموش سرویس (روی خود ربات!)
   /presets       — لیست ۱۰ پریست
   /test          — تست زنجیره با یک صدای کوتاه
 
 روند کار:
   ۱) فایل صوتی می‌فرستی (وکال خالی / آهنگ کامل / دو فایل: وکال + بیت)
-  ۲) حالت انتخاب می‌کنی
-  ۳) از بین ۱۰ پریست انتخاب می‌کنی
-  ۴) ربات پردازش می‌کنه و فایل نهایی رو برمی‌گردونه
+  ۲) (اختیاری) آهنگ مرجع آپلود می‌کنی تا تُنال خروجی بهش نزدیک بشه
+  ۳) حالت انتخاب می‌کنی
+  ۴) از بین ۱۰ پریست انتخاب می‌کنی
+  ۵) ربات پردازش می‌کنه و فایل نهایی رو برمی‌گردونه
 """
 import logging
-import os
 import uuid
 from pathlib import Path
 
@@ -24,12 +25,13 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import (
-    CallbackQuery, FSInputFile, InputMediaAudio, Message,
+    CallbackQuery, FSInputFile, Message,
 )
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from config import ADMIN_ID, MAX_FILE_SIZE, TMP_DIR
 from src import power
+from src.match_eq import analyze as analyze_reference
 from src.pipeline import get_preset, load_presets, process_mode, separate_stems, smart_available
 
 log = logging.getLogger("handlers")
@@ -40,10 +42,14 @@ VOCAL_HINTS = ["vocal", "voice", "وکال", "صدا", "اکاپلا", "a capell
 INST_HINTS = ["inst", "بیت", "موزیک", "ساز", "بدون", "no vocal", "instrumental", "beat", "off vocal"]
 FULL_HINTS = ["full", "mix", "آهنگ", "کامل", "کل", "song", "final", "raw"]
 
+# ── جداکنندهٔ بصری پیام‌ها ──
+SEP = "─" * 24
+
 
 class Step(StatesGroup):
-    wait_file = State()       # در انتظار فایل اول
-    wait_file2 = State()      # در انتظار فایل دوم (وکال+بیت)
+    wait_ref = State()         # در انتظار فایل مرجع (Match EQ)
+    wait_file = State()        # در انتظار فایل اول
+    wait_file2 = State()       # در انتظار فایل دوم (وکال+بیت)
     wait_mode = State()
     wait_preset = State()
 
@@ -63,7 +69,6 @@ def _check_admin(user_id: int) -> bool:
 
 
 def _fmt_name(ext):
-    """پیشوند فارسی برای فایل‌های موقت (فایل‌سیستم ابری UTF-8 رو پشتیبانی می‌کنه)."""
     try:
         return f"ربات_میکس_{uuid.uuid4().hex[:8]}"
     except Exception:
@@ -71,8 +76,41 @@ def _fmt_name(ext):
 
 
 def _kb():
-    b = InlineKeyboardBuilder()
-    return b
+    return InlineKeyboardBuilder()
+
+
+def _audio_meta(msg: Message):
+    """استخراج (نوع, نام فایل, حجم) از یک پیام صوتی."""
+    typ = (msg.audio and "audio") or (msg.voice and "voice") or \
+          (msg.video and "video") or "document"
+    fname, size = "", 0
+    try:
+        if typ == "audio":
+            fname = msg.audio.file_name or "audio.mp3"
+            size = msg.audio.file_size or 0
+        elif typ == "voice":
+            fname, size = "voice.ogg", msg.voice.file_size or 0
+        elif typ == "video":
+            fname = msg.video.file_name or "video.mp4"
+            size = msg.video.file_size or 0
+        elif typ == "document":
+            fname = msg.document.file_name or "document.bin"
+            size = msg.document.file_size or 0
+    except Exception:
+        pass
+    return typ, fname, size
+
+
+def _file_obj(msg: Message):
+    return msg.document or msg.audio or msg.video or msg.voice
+
+
+def _extract_key(rep):
+    """استخراج نام دقیق گام از گزارش مراحل (اگه وجود داشته باشه)."""
+    for r in rep:
+        if "گام:" in r:
+            return r.split("گام:", 1)[1].strip()
+    return None
 
 
 def _mode_kb():
@@ -94,26 +132,26 @@ def _preset_kb():
     return b.as_markup()
 
 
-def _preset_desc(p):
-    return (f"<b>{p['name']}</b>\n"
-            f"<i>{p['desc']}</i>\n\n"
-            f"<b>وکال:</b> اتوتیون {int(p['vocal']['tune']['strength'] * 100)}٪ • "
-            f"کمپرس {p['vocal']['comp1']['ratio']}:۱ + {p['vocal']['comp2']['ratio']}:۱ • "
-            f"هوا @{p['vocal']['air']['freq']}Hz\n"
-            f"<b>مستر:</b> لیمیتر {p['master']['lufs']} LUFS • "
-            f"پهنا {int(p['master']['width'] * 100)}٪ • سقف {p['master']['ceiling']}dB")
+def _presets_text():
+    """لیست پریست‌ها با جداکننده — برای نمایش تمیز."""
+    lines = ["🎚️ <b>پریست‌های میکس و مستر</b>", SEP]
+    for i, p in enumerate(load_presets(), 1):
+        lines.append(f"<b>{i}. {p['name']}</b>")
+        lines.append(f"   {p['desc']}")
+        lines.append(SEP)
+    lines[-1] = ""  # حذف جداکنندهٔ آخر
+    lines.append("فایل بفرست تا شروع کنیم ⬆️")
+    return "\n".join(lines)
 
 
 async def _ask_mode(msg, state, edit=False):
     await state.set_state(Step.wait_mode)
-    text = ("🎛️ <b>حالت پردازش رو انتخاب کن:</b>\n\n"
-            "🎤 <b>وکال خالی</b> — فقط صدای خودت رو می‌دی، زنجیره کامل وکال اجرا می‌شه\n"
-            "🎵 <b>آهنگ کامل</b> — آهنگ بدون جداسازی، فقط مسترینگ ۱۰ پریست\n"
-            "🎛️ <b>وکال + بیت</b> — دو فایل می‌دی (وکال تمیز)، میکس و مستر نهایی\n"
-            "🧹 <b>وکال+بیت (جداسازی خودم)</b> — وکالی که خودت جداسازی کردی و "
-            "کمی موزیک باهاش نشت کرده؛ پاکسازی نشت خودکار + میکس و مستر\n"
-            "✨ <b>هوشمند</b> — آهنگ کامل می‌دی، ربات خودش وکال رو جدا می‌کنه، "
-            "وکال و موزیک جدا پردازش می‌شن و دوباره میکس و مستر می‌شن")
+    text = ("🎛️ <b>حالت پردازش</b>\n" + SEP + "\n"
+            "🎤 <b>وکال خالی</b> — فقط صدای خودت؛ زنجیرهٔ کامل وکال\n"
+            "🎵 <b>آهنگ کامل</b> — بدون جداسازی؛ فقط مسترینگ\n"
+            "🎛️ <b>وکال + بیت</b> — دو فایل (وکال تمیز)؛ میکس و مستر\n"
+            "🧹 <b>جداسازی خودم</b> — وکال نشت‌دار خودت؛ پاکسازی خودکار\n"
+            "✨ <b>هوشمند</b> — ربات وکال رو با Demucs جدا می‌کنه")
     if edit:
         await msg.edit_text(text, reply_markup=_mode_kb(), parse_mode="HTML")
     else:
@@ -124,22 +162,22 @@ async def _ask_mode(msg, state, edit=False):
 
 @router.message(Command("start", "help"))
 async def cmd_start(msg: Message):
-    kb = InlineKeyboardBuilder()
+    kb = _kb()
     kb.button(text="🎤 شروع میکس و مستر", callback_data="menu:howto")
-    kb.button(text="🎚️ دیدن ۱۰ پریست", callback_data="menu:presets")
+    kb.button(text="🎚️ پریست‌ها", callback_data="menu:presets")
+    kb.button(text="🎯 تطبیق با مرجع (Match EQ)", callback_data="menu:match")
     kb.button(text="✨ حالت هوشمند چیه؟", callback_data="menu:smart")
-    kb.button(text="⚡️ روشن / 😴 خاموش", callback_data="menu:power")
     kb.adjust(1)
     await msg.answer(
-        "🎚️ <b>ویوا میکس مستر</b> — استودیوی خودکار تلگرامی!\n\n"
+        "🎚️ <b>ویوا میکس مستر</b>\n" + SEP + "\n"
+        "استودیوی خودکار تلگرامی — میکس و مستر حرفه‌ای وکال و بیت.\n\n"
         "<b>روش کار:</b>\n"
-        "۱️⃣ فایل صوتی‌ات رو بفرست (وکال خالی، آهنگ کامل، یا دو فایل وکال+بیت)\n"
+        "۱️⃣ فایل صوتی بفرست (وکال / آهنگ کامل / وکال+بیت)\n"
         "۲️⃣ حالت پردازش رو انتخاب کن\n"
-        "۳️⃣ یکی از <b>۱۰ پریست</b> حرفه‌ای رو انتخاب کن\n"
-        "۴️⃣ فایل میکس و مستر شده رو تحویل بگیر ✅\n\n"
-        "🎹 پردازش‌ها: اصلاح نت نرم، دی‌اسر، کمپرسور ۱۱۷۶ و LA-2A، کمپرسور موازی، "
-        "EQ، گرماساز، هوا و درخشش، اکو، ریورب، پهنای استریو و مسترینگ LUFS\n\n"
-        "⬅️ از دکمه <b>منو</b> پایین چپ تلگرام هم می‌تونی همه کامندها رو ببینی.",
+        "۳️⃣ یکی از ۱۰ پریست حرفه‌ای رو بزن\n"
+        "۴️⃣ خروجی میکس‌شده رو تحویل بگیر ✅\n\n"
+        "🎯 <b>نکتهٔ حرفه‌ای:</b> با دکمهٔ «تطبیق با مرجع» یه آهنگ که صداش رو "
+        "دوست داری آپلود کن تا تُنال خروجیت دقیقاً به اون نزدیک بشه.",
         reply_markup=kb.as_markup(), parse_mode="HTML",
     )
 
@@ -147,9 +185,12 @@ async def cmd_start(msg: Message):
 @router.callback_query(F.data == "menu:howto")
 async def cb_howto(cb: CallbackQuery):
     await cb.message.answer(
-        "📥 <b>فقط فایل صوتی رو بفرست</b> (mp3 / wav / ogg / ویس تلگرام، تا ۲۰ مگ)\n\n"
-        "اگه می‌خوای <b>وکال + بیت</b> جدا بفرستی، دو فایل رو پشت سر هم بفرست.\n"
-        "بعدش حالت و پریست رو انتخاب می‌کنی و فایل نهایی برمی‌گرده! 🎧",
+        "📥 <b>راهنمای سریع</b>\n" + SEP + "\n"
+        "• فایل صوتی بفرست (mp3 / wav / ogg / ویس، تا ۲۰ مگ)\n"
+        "• برای «وکال + بیت» دو فایل پشت سر هم بفرست\n"
+        "• حالت و پریست رو انتخاب کن\n"
+        "• فایل نهایی برمی‌گرده 🎧\n" + SEP + "\n"
+        "🎯 برای تطبیق با آهنگ دلخواه، اول دکمهٔ «تطبیق با مرجع» رو بزن.",
         parse_mode="HTML",
     )
     await cb.answer()
@@ -157,11 +198,7 @@ async def cb_howto(cb: CallbackQuery):
 
 @router.callback_query(F.data == "menu:presets")
 async def cb_presets(cb: CallbackQuery):
-    lines = ["🎚️ <b>۱۰ پریست میکس و مستر:</b>\n"]
-    for i, p in enumerate(load_presets(), 1):
-        lines.append(f"{i}. {p['name']} — {p['desc']}")
-    lines.append("\nفایل بفرست تا شروع کنیم ⬆️")
-    await cb.message.answer("\n".join(lines), parse_mode="HTML")
+    await cb.message.answer(_presets_text(), parse_mode="HTML")
     await cb.answer()
 
 
@@ -170,10 +207,10 @@ async def cb_smart(cb: CallbackQuery):
     ok, why = smart_available()
     state = ("✅ فعاله" if ok else f"❌ غیرفعاله — {why}")
     await cb.message.answer(
-        "✨ <b>حالت هوشمند</b>\n\n"
-        "آهنگ کامل می‌فرستی، ربات خودش با هوش مصنوعی (Demucs) وکال رو از موزیک "
-        "جدا می‌کنه، وکال و موزیک رو <b>جداگونه</b> پردازش می‌کنه و در نهایت "
-        "میکس و مستر نهایی انجام می‌ده.\n\n"
+        "✨ <b>حالت هوشمند</b>\n" + SEP + "\n"
+        "آهنگ کامل می‌فرستی، ربات با هوش مصنوعی (Demucs) وکال رو از موزیک "
+        "جدا می‌کنه، هر دو رو جدا پردازش می‌کنه و میکس و مستر نهایی انجام می‌ده.\n"
+        + SEP + "\n"
         f"وضعیت روی سرور فعلی: {state}",
         parse_mode="HTML",
     )
@@ -183,10 +220,10 @@ async def cb_smart(cb: CallbackQuery):
 @router.callback_query(F.data == "menu:power")
 async def cb_power(cb: CallbackQuery):
     await cb.message.answer(
-        "⚡️ <b>کنترل ربات:</b>\n\n"
+        "⚡️ <b>کنترل ربات</b>\n" + SEP + "\n"
         "/on — روشن کردن سرویس\n"
-        "/off — خاموش کردن سرویس (حالت خواب)\n\n"
-        "کامندهای دیگه: /presets و /test",
+        "/off — خاموش کردن (حالت خواب)\n" + SEP + "\n"
+        "سایر: /presets • /test • /match",
         parse_mode="HTML",
     )
     await cb.answer()
@@ -198,11 +235,7 @@ async def cmd_presets(msg: Message):
     if gate:
         await msg.answer(gate)
         return
-    lines = ["🎚️ <b>۱۰ پریست میکس و مستر:</b>\n"]
-    for i, p in enumerate(load_presets(), 1):
-        lines.append(f"{i}. {p['name']} — {p['desc']}")
-    lines.append("\nفایل بفرست تا شروع کنیم ⬆️")
-    await msg.answer("\n".join(lines), parse_mode="HTML")
+    await msg.answer(_presets_text(), parse_mode="HTML")
 
 
 @router.message(Command("on"))
@@ -246,7 +279,6 @@ async def cmd_test(msg: Message):
     try:
         import numpy as np
         from src.audio_engine import SR, save_wav
-        from src.pipeline import process_mode
         t = np.arange(SR * 4) / SR
         x = (0.35 * np.sin(2 * np.pi * 220 * t) * (1 + 0.3 * np.sin(2 * np.pi * 2 * t)))
         x = np.stack([x, x], 1).astype("float32")
@@ -266,6 +298,39 @@ async def cmd_test(msg: Message):
             pass
 
 
+# ══════════════════ تطبیق با مرجع (Match EQ) ══════════════════
+
+@router.message(Command("match"))
+async def cmd_match(msg: Message, state: FSMContext):
+    gate = _power_gate()
+    if gate:
+        await msg.answer(gate)
+        return
+    await state.set_state(Step.wait_ref)
+    await msg.answer(
+        "🎯 <b>تطبیق با آهنگ مرجع</b>\n" + SEP + "\n"
+        "یه آهنگ که میکس/مسترش رو دوست داری آپلود کن "
+        "(مثلاً کار مجید رضوی یا هر خوانندهٔ معروف).\n\n"
+        "ربات پروفایل تُنالش رو تحلیل می‌کنه، بعد خروجی تو رو به همون "
+        "منحنی می‌رسونه.\n" + SEP + "\n"
+        "⬇️ <b>فایل مرجع رو بفرست.</b>",
+        parse_mode="HTML",
+    )
+
+
+@router.callback_query(F.data == "menu:match")
+async def cb_match(cb: CallbackQuery, state: FSMContext):
+    await state.set_state(Step.wait_ref)
+    await cb.message.answer(
+        "🎯 <b>تطبیق با آهنگ مرجع</b>\n" + SEP + "\n"
+        "یه آهنگ که صداش رو دوست داری آپلود کن تا پروفایل تُنالش رو بگیرم.\n"
+        + SEP + "\n"
+        "⬇️ <b>فایل مرجع رو بفرست.</b>",
+        parse_mode="HTML",
+    )
+    await cb.answer()
+
+
 # ══════════════════ دریافت فایل ══════════════════
 
 def _guess_kind(fname):
@@ -279,14 +344,6 @@ def _guess_kind(fname):
     return "unknown"
 
 
-def _need_download(typ) -> bool:
-    if typ in ("audio", "voice", "video", "document"):
-        return True
-    if typ in ("video_note",):
-        return False
-    return False
-
-
 @router.message(F.audio | F.voice | F.document | F.video)
 async def on_audio(msg: Message, state: FSMContext):
     gate = _power_gate()
@@ -294,52 +351,74 @@ async def on_audio(msg: Message, state: FSMContext):
         await msg.answer(gate)
         return
 
-    typ = (msg.audio and "audio") or (msg.voice and "voice") or \
-          (msg.video and "video") or "document"
-    if not _need_download(typ):
-        await msg.answer("❌ این نوع فایل پشتیبانی نمی‌شه (فقط صدا).")
-        return
-
-    fname = ""
-    size = 0
-    try:
-        if typ == "audio":
-            fname = msg.audio.file_name or "audio.mp3"
-            size = msg.audio.file_size or 0
-        elif typ == "voice":
-            fname = "voice.ogg"
-            size = msg.voice.file_size or 0
-        elif typ == "video":
-            fname = msg.video.file_name or "video.mp4"
-            size = msg.video.file_size or 0
-        elif typ == "document":
-            fname = msg.document.file_name or "document.bin"
-            size = msg.document.file_size or 0
-    except Exception:
-        pass
-
-    ext = Path(fname).suffix.lower()
-    if typ == "document" and ext not in AUDIO_EXT:
+    typ, fname, size = _audio_meta(msg)
+    if typ == "document" and Path(fname).suffix.lower() not in AUDIO_EXT:
         await msg.answer("❌ سند فرستادی که فرمت صوتی نداره! "
                          "فایل صوتی (mp3/wav/ogg/...) بفرست.")
         return
-
     if size and size > MAX_FILE_SIZE:
         await msg.answer("❌ فایل بزرگ‌تر از ۲۰ مگابایته! ربات‌های تلگرام "
                          "بیشتر از این نمی‌تونن دانلود کنن. فایل سبک‌تر بفرست.")
         return
 
-    ds = await state.get_data()
-    first = ds.get("first")
+    ext = Path(fname).suffix.lower()
     cur = await state.get_state()
     base = Path(TMP_DIR)
     tmp = base / f"{_fmt_name(ext)}{ext or '.bin'}"
+
+    # ── حالت مرجع: تحلیل پروفایل تُنال ──
+    if cur == Step.wait_ref.state:
+        wait = await msg.answer("🔬 در حال تحلیل پروفایل تُنال مرجع...")
+        try:
+            await msg.bot.download(_file_obj(msg), tmp)
+        except Exception as e:
+            await msg.answer(f"❌ دانلود نشد: {e}")
+            return
+        try:
+            profile = await _run_async(analyze_reference, str(tmp))
+        except Exception as e:
+            log.exception("match analyze failed")
+            await msg.answer(f"❌ تحلیل مرجع خطا داد:\n{e}")
+            return
+        finally:
+            try:
+                await wait.delete()
+            except Exception:
+                pass
+
+        await state.update_data(ref_profile=profile, ref_name=fname, match=True)
+        await state.set_state(Step.wait_file)
+
+        w = profile.get("warmth_db", 0)
+        m = profile.get("mid_db", 0)
+        b = profile.get("brightness_db", 0)
+        t = profile.get("tilt_db", 0)
+
+        def _sign(v):
+            return f"{'+' if v >= 0 else ''}{v}"
+
+        await msg.answer(
+            "🎯 <b>پروفایل مرجع گرفته شد</b>\n" + SEP + "\n"
+            f"📁 <b>فایل:</b> {fname}\n" + SEP + "\n"
+            "<b>📊 تحلیل تُنال:</b>\n"
+            f"🔥 گرما (بم):      <b>{_sign(w)} dB</b>\n"
+            f"🎚️ میدرنج:          <b>{_sign(m)} dB</b>\n"
+            f"✨ درخشش (بالا):   <b>{_sign(b)} dB</b>\n"
+            f"📈 شیب تُنال:      <b>{_sign(t)} dB</b>\n" + SEP + "\n"
+            "✅ حالا <b>آهنگ / وکال / بیت خودت</b> رو بفرست.\n"
+            "پردازش طبق این منحنی + پریست انتخابی انجام می‌شه.",
+            parse_mode="HTML",
+        )
+        return
+
+    ds = await state.get_data()
+    first = ds.get("first")
 
     if cur == Step.wait_file2.state and first:
         # فایل دوم — وکال + بیت
         wait = await msg.answer("📥 فایل دوم در حال دانلود...")
         try:
-            await msg.bot.download(msg.document or msg.audio or msg.video or msg.voice, tmp)
+            await msg.bot.download(_file_obj(msg), tmp)
         except Exception as e:
             await msg.answer(f"❌ دانلود نشد: {e}")
             return
@@ -355,7 +434,7 @@ async def on_audio(msg: Message, state: FSMContext):
     # فایل اول
     wait = await msg.answer("📥 دانلود شد، آماده‌سازی...")
     try:
-        await msg.bot.download(msg.document or msg.audio or msg.video or msg.voice, tmp)
+        await msg.bot.download(_file_obj(msg), tmp)
     except Exception as e:
         await msg.answer(f"❌ دانلود نشد: {e}")
         return
@@ -367,7 +446,7 @@ async def on_audio(msg: Message, state: FSMContext):
                                    "name": fname})
     await state.set_state(Step.wait_file2)
     await msg.answer(
-        "✅ فایل اول گرفتم.\n\n"
+        "✅ فایل اول گرفتم.\n" + SEP + "\n"
         "اگه می‌خوای <b>وکال + بیت (دو فایل)</b> بفرستی، فایل دوم رو الان بفرست.\n"
         "اگه نه، یکی از دکمه‌های زیر رو بزن 👇",
         reply_markup=_mode_kb(), parse_mode="HTML",
@@ -389,15 +468,11 @@ async def on_mode(cb: CallbackQuery, state: FSMContext):
         await cb.answer("اول یک فایل صوتی بفرست!")
         return
 
-    # منطق حالت‌ها
     if mode in ("two", "two_bleed") and not second:
         await cb.answer("برای این حالت دو فایل لازمه: وکال + بیت")
         await state.set_state(Step.wait_file2)
         await cb.message.answer("فایل دوم (بیت/موزیک) رو بفرست 👇")
         return
-    if mode in ("two", "two_bleed") and second:
-        # اگر فایل اول آهنگ کامل بود و فایل دوم بیت، جای‌گذاری مناسب
-        pass
     if mode == "smart":
         ok, why = smart_available()
         if not ok:
@@ -407,7 +482,7 @@ async def on_mode(cb: CallbackQuery, state: FSMContext):
     await state.update_data(mode=mode)
     await state.set_state(Step.wait_preset)
     await cb.message.edit_text(
-        "🎚️ <b>عالی! حالا یکی از ۱۰ پریست رو انتخاب کن:</b>",
+        "🎚️ <b>عالی! حالا یکی از پریست‌ها رو انتخاب کن:</b>",
         reply_markup=_preset_kb(), parse_mode="HTML",
     )
     await cb.answer()
@@ -429,12 +504,14 @@ async def on_preset(cb: CallbackQuery, state: FSMContext):
 
     preset = get_preset(pid)
     mode = ds.get("mode", "full")
+    match = ds.get("ref_profile") if ds.get("match") else None
     workdir = Path(TMP_DIR) / f"job_{uuid.uuid4().hex}"
     workdir.mkdir(parents=True, exist_ok=True)
 
+    extra = " + 🎯 تطبیق با مرجع" if match else ""
     progress = await cb.message.edit_text(
-        f"⏳ پردازش با پریست «{preset['name']}» شروع شد...\n"
-        f"🧠 حالت: {mode}\n\n"
+        f"⏳ پردازش با پریست «{preset['name']}»{extra} شروع شد...\n"
+        f"🧠 حالت: {mode}\n" + SEP + "\n"
         "این کار می‌تونه چند دقیقه طول بکشه، صبور باش 🙏",
         parse_mode="HTML",
     )
@@ -456,17 +533,25 @@ async def on_preset(cb: CallbackQuery, state: FSMContext):
                 second = ds2.get("second") or ds.get("second")
                 paths = {"vocal": first["path"], "inst": second["path"]}
 
-        out, rep, dt = await _run_async(process_mode, paths, mode, preset, workdir)
+        out, rep, dt = await _run_async(process_mode, paths, mode, preset,
+                                        workdir, match=match)
         size_mb = Path(out).stat().st_size / 1e6
-        lines = [f"✅ <b>تموم شد!</b> پردازش {dt:.0f} ثانیه طول کشید.",
-                 f"📦 حجم فایل: {size_mb:.1f} مگابایت", "",
-                 "🎛️ <b>مراحل انجام شده:</b>"]
-        lines += rep
+        key = _extract_key(rep)
+
+        lines = ["✅ <b>پردازش تموم شد!</b>", SEP,
+                 f"⏱ زمان: {dt:.0f} ثانیه",
+                 f"📦 حجم: {size_mb:.1f} مگابایت",
+                 f"🎛️ پریست: {preset['name']}"]
+        if key:
+            lines.append(f"🎵 گام تشخیص‌شده: <b>{key}</b>")
+        if match:
+            lines.append(f"🎯 مرجع: {ds.get('ref_name', '')}")
+        lines += [SEP, "<b>🧾 مراحل انجام‌شده:</b>"] + rep
         await progress.delete()
         await cb.message.answer("\n".join(lines), parse_mode="HTML")
         await cb.message.answer_audio(FSInputFile(out, filename=f"{preset['id']}_final.mp3"),
                                       title=f"{preset['name']}",
-                                      performer="MixMaster Bot")
+                                      performer="Viva MixMaster")
     except Exception as e:
         log.exception("processing failed")
         try:

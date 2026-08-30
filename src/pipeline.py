@@ -21,6 +21,7 @@ from src.audio_engine import (
     SR, encode_mp3, load_audio, master_chain, mix_and_master,
     save_wav, vocal_chain,
 )
+from src.match_eq import apply_match_eq
 
 log = logging.getLogger("pipeline")
 
@@ -134,8 +135,10 @@ def separate_stems(path, workdir):
 
 # ══════════════════ پردازش اصلی ══════════════════
 
-def process_mode(paths, mode, preset, workdir=None):
+def process_mode(paths, mode, preset, workdir=None, match=None):
     """paths: {'vocal':..., 'inst':..., 'full':...} بر اساس حالت
+    match: پروفایل تُنال مرجع (dict از match_eq.analyze) — اگه داده بشه،
+           تُنالِ عنصر اصلی هر حالت به منحنی مرجع نزدیک می‌شه (Match EQ).
     خروجی: (مسیر فایل نهایی, لیست گزارش, ثانیه زمان پردازش)
     """
     workdir = Path(workdir or TMP_DIR)
@@ -145,11 +148,19 @@ def process_mode(paths, mode, preset, workdir=None):
     if mode == "vocal":
         x, sr = load_audio(paths["vocal"])
         y, vrep = vocal_chain(x, sr, preset.get("vocal", {}))
+        if match:
+            y = apply_match_eq(y, sr, match)
+            vrep = vrep + ["🎯 تطبیق تُنال با مرجع (Match EQ)"]
         rep = [header, "🎤 زنجیره وکال:"] + vrep
     elif mode == "full":
         x, sr = load_audio(paths["full"])
+        if match:
+            x = apply_match_eq(x, sr, match)
         y, mrep = master_chain(x, sr, preset.get("master", {}))
-        rep = [header, "🎵 زنجیره مسترینگ:"] + mrep
+        rep = [header, "🎵 زنجیره مسترینگ:"]
+        if match:
+            rep.append("🎯 تطبیق تُنال با مرجع (Match EQ)")
+        rep += mrep
     elif mode in ("two", "smart", "two_bleed"):
         if mode == "smart" and "vocal" not in paths:
             # اگه فقط آهنگ کامل داده شده، خودمان جداسازی می‌کنیم
@@ -157,6 +168,9 @@ def process_mode(paths, mode, preset, workdir=None):
             paths = {"vocal": str(vp), "inst": str(ip)}
         vx, sr = load_audio(paths["vocal"])
         ix, _ = load_audio(paths["inst"])
+        if match:
+            # بیت رو به منحنی مرجع نزدیک می‌کنیم تا وکال «سوار» همون بافت بشه
+            ix = apply_match_eq(ix, sr, match)
         vcfg = dict(preset.get("vocal", {}))
         if mode in ("two_bleed", "smart"):
             # وکال جداسازی‌شده (ابزار کاربر یا Demucs) همیشه کمی نشت موزیک
@@ -169,7 +183,9 @@ def process_mode(paths, mode, preset, workdir=None):
         y, mixrep = mix_and_master(v, ix, sr, preset.get("mix", {}),
                                    preset.get("master", {}))
         rep = ([header, "🎤 زنجیره وکال:"] + vrep
-               + ["🎧 میکس و مستر نهایی:"] + mixrep)
+               + ["🎧 میکس و مستر نهایی:"]
+               + (["🎯 تطبیق تُنال با مرجع (Match EQ)"] if match else [])
+               + mixrep)
     else:
         raise ValueError(f"حالت ناشناخته: {mode}")
 
