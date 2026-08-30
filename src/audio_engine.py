@@ -136,8 +136,25 @@ def env_follow(x, sr, attack_ms=10.0, release_ms=120.0):
 
 # ══════════════════ دی‌اسر (کنترل سوت «س») ══════════════════
 
+def _band_deess(x, sr, lo_hz, hi_hz, threshold_db, ratio,
+                attack_ms, release_ms):
+    """هستهٔ دی‌اسر باندی: باند lo..hi رو جدا می‌کنه و فقط همون باند رو
+    بر اساس انرژی خودش فشرده می‌کنه (بدون دست‌زدن به بقیهٔ طیف)."""
+    hp = highpass(x, sr, lo_hz, order=4)
+    band = lowpass(hp, sr, hi_hz, order=4)
+    rest = x - band
+    env = env_follow(band, sr, attack_ms, release_ms)
+    over = np.maximum(lin2db(env) - np.float32(threshold_db), 0.0)
+    gr = over * (1.0 - 1.0 / ratio)
+    gain = db2lin(-gr).astype(np.float32)
+    if gain.ndim == 1 and x.ndim == 2:
+        gain = gain[:, None]
+    return (rest + band * gain).astype(np.float32)
+
+
 def deesser(x, sr, freq=6200.0, threshold_db=-24.0, ratio=5.0,
-            attack_ms=2.0, release_ms=40.0, makeup_db=0.0):
+            attack_ms=1.5, release_ms=35.0, makeup_db=0.0):
+    """دی‌اسر (کنترل سوت «س/ش») — حملهٔ سریع، روی باند بالای freq."""
     hp = highpass(x, sr, freq, order=4)
     lo = x - hp
     env = env_follow(hp, sr, attack_ms, release_ms)
@@ -151,6 +168,25 @@ def deesser(x, sr, freq=6200.0, threshold_db=-24.0, ratio=5.0,
     if makeup_db:
         out = out * np.float32(db2lin(makeup_db))
     return out.astype(np.float32)
+
+
+def de_harshness(x, sr, freq=3500.0, threshold_db=-21.0, ratio=3.5,
+                 attack_ms=3.0, release_ms=60.0):
+    """مهار سخت‌خوانی «ش/خ/ج» و لبه‌های تیز ۲.۵–۵kHz که صدا رو «نیش‌دار» می‌کنن.
+    دی‌اسرِ باند میانی — حروف صدادار تیز رو نرم می‌کنه بدون خفه کردن درخشش."""
+    return _band_deess(x, sr, freq * 0.6, freq * 1.6, threshold_db, ratio,
+                       attack_ms, release_ms)
+
+
+def transient_tame(x, sr, threshold_db=-14.0, ratio=4.0,
+                   attack_ms=0.3, release_ms=25.0):
+    """مهار پاپِ صامت‌های انفجاری (پ/ب/ت/ک/د) با یک کمپرسور فوق‌سریع.
+    attack خیلی کوتاه فقط لبهٔ تیز ترنزینت رو می‌گیره؛ بدنهٔ واکه
+    دست‌نخورده می‌مونه → «پ/ک/ت/د» دیگه بیرون نمی‌زنه بدون اینکه صدا خفه بشه."""
+    return np.asarray(
+        Compressor(threshold_db=threshold_db, ratio=ratio,
+                   attack_ms=attack_ms, release_ms=release_ms)(x, sr),
+        dtype=np.float32)
 
 # ══════════════════ گرماساز / اشباع ══════════════════
 
@@ -403,10 +439,20 @@ def vocal_chain(x, sr, v):
                        ratio=g.get("ratio", 3.0))
         rep.append("گیت نرم — حذف نویز و هیس سکوت‌ها")
 
+    # مهار پاپ صامت‌های انفجاری (پ/ب/ت/ک/د) — قبل از کمپرسورها تا ترنزینت‌ها
+    # بزرگ‌نمایی نشن
+    depl = v.get("deplosive")
+    if depl is not False:
+        dp = depl if isinstance(depl, dict) else {}
+        y = transient_tame(y, sr,
+                           threshold_db=dp.get("threshold_db", -14.0),
+                           ratio=dp.get("ratio", 4.0))
+        rep.append("مهار پاپ صامت‌های انفجاری (پ/ب/ت/ک/د)")
+
     tune = v.get("tune") or {}
     if tune.get("strength", 0) > 0:
         try:
-            from src.autotune import autotune, SCALE_NAMES_FA
+            from src.autotune import autotune
             yt, reason = autotune(
                 y, sr,
                 strength=tune["strength"],
@@ -415,8 +461,8 @@ def vocal_chain(x, sr, v):
                 vibrato_keep=float(tune.get("vibrato_keep", 0.85)))
             if yt is not None:
                 y = to_stereo(yt)
-                gam = SCALE_NAMES_FA.get(reason, reason) if reason else ""
-                extra = f" • گام: {gam}" if gam and gam != "ok" else ""
+                gam = reason if reason and reason != "ok" else ""
+                extra = f" • گام: {gam}" if gam else ""
                 rep.append(f"اصلاح نت سبک ملوداین {int(tune['strength'] * 100)}٪"
                            f" (سقف {tune.get('snap', 50)} سنت، تحریر حفظ)"
                            f"{extra}")
@@ -498,6 +544,18 @@ def vocal_chain(x, sr, v):
             lambda blk: air_exciter(blk, sr, ai["freq"], ai["drive_db"], ai["mix"]),
             y, sr, block_s=15.0)
         rep.append(f"هوا و جزئیات ریز تیس (Air Exciter @ {ai['freq']}Hz)")
+
+    # نرم‌کردن سخت‌خوانی بعد از هوا/اشباع — لبه‌های تیز ۲.۵–۵kHz که از
+    # اشباع و exciter درست می‌شن (حروف «ش/خ/ج» و حالت توییتری) اینجا مهار می‌شن
+    hsh = v.get("harshness")
+    if hsh is not False:
+        hs = hsh if isinstance(hsh, dict) else {}
+        y = block_apply(
+            lambda blk: de_harshness(blk, sr, hs.get("freq", 3500.0),
+                                     hs.get("threshold_db", -21.0),
+                                     hs.get("ratio", 3.5)),
+            y, sr, block_s=30.0)
+        rep.append("نرم‌کردن سخت‌خوانی (ش/خ/ج) — بدون حالت توییتری")
 
     d = v.get("delay")
     if d:

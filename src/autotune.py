@@ -60,6 +60,21 @@ SCALE_NAMES_FA = {
     "bayati": "بایاتی (ایرانی)", "chromatic": "کروماتیک",
 }
 
+# نام نت‌ها (برای گزارش گام دقیق: tonic 0..11 → نت ریشه)
+NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+
+
+def format_key(scale_name, tonic):
+    """ساخت نام دقیق گام برای گزارش تلگرام — مثلاً «E مینور هارمونیک».
+
+    scale_name: نام گام (major/minor/harmonic_minor/bayati/chromatic)
+    tonic:      نت ریشه به صورت نیم‌پردهٔ ۰..۱۱ (۰=C)
+    """
+    if not scale_name or scale_name == "chromatic":
+        return SCALE_NAMES_FA.get("chromatic", "کروماتیک")
+    note = NOTE_NAMES[int(round(tonic)) % 12]
+    return f"{note} {SCALE_NAMES_FA.get(scale_name, scale_name)}"
+
 
 def detect_scale(pitch_cents, voiced, energy):
     """بهترین گام و تونیک از روی هیستوگرام وزنی پیچ.
@@ -81,18 +96,29 @@ def detect_scale(pitch_cents, voiced, energy):
     hist /= hist.sum()
     bin_centers = np.arange(120) * 10.0 + 5.0
 
-    best = ("chromatic", 0.0, 50.0, 1e9)  # name, tonic, err, score
-    for name in ("major", "minor", "harmonic_minor", "bayati"):
-        tmpl = np.array(SCALE_TEMPLATES[name], dtype=np.float64)
-        for tonic in range(12):
-            allowed = np.mod(tmpl + tonic * 100.0, 1200.0)
-            # فاصلهٔ دایره‌ای هر بین تا نزدیک‌ترین نت مجاز
-            d = np.abs(bin_centers[:, None] - allowed[None, :])
-            d = np.minimum(d, 1200.0 - d).min(axis=1)
-            score = float(np.dot(hist, d))
-            if score < best[3]:
-                best = (name, float(tonic), 0.0, score)
-    name, tonic, _, score = best
+    def _best_of(names):
+        b = ("chromatic", 0.0, 1e9)
+        for name in names:
+            tmpl = np.array(SCALE_TEMPLATES[name], dtype=np.float64)
+            for tonic in range(12):
+                allowed = np.mod(tmpl + tonic * 100.0, 1200.0)
+                # فاصلهٔ دایره‌ای هر بین تا نزدیک‌ترین نت مجاز
+                d = np.abs(bin_centers[:, None] - allowed[None, :])
+                d = np.minimum(d, 1200.0 - d).min(axis=1)
+                score = float(np.dot(hist, d))
+                if score < b[2]:
+                    b = (name, float(tonic), score)
+        return b
+
+    # گام‌های استاندارد (غربی) و بایاتی (ایرانی) جدا ارزیابی می‌شن؛ بایاتی فقط
+    # وقتی انتخاب می‌شه که به‌طور محسوس بهتر از بهترین گام استاندارد باشه —
+    # وگرنه برای موسیقی معمولی (غیر فارسی) کوارترتون اشتباه اعمال می‌شه.
+    best_std = _best_of(("major", "minor", "harmonic_minor"))
+    best_bay = _best_of(("bayati",))
+    if best_bay[2] < best_std[2] - 4.0:  # حداقل ۴ سنت بهتر → بایاتی واقعی
+        name, tonic, score = best_bay
+    else:
+        name, tonic, score = best_std
     # اگه بهترین گام هم به‌طور متوسط بیش از ~۳۶ سنت خطا داشت، آهنگ با هیچ گام
     # استانداردی جور نیست (مثلاً کوارترتون آزاد یا بی‌کوکی شدید) → کروماتیک امن‌تره
     if score > 36.0:
@@ -280,7 +306,7 @@ def _tune_segment(x_mono, sr, strength, snap_cents, f0_floor, f0_ceil,
     pk = float(np.max(np.abs(out)))
     if pk > 0.985:
         out *= np.float32(0.985 / pk)
-    return out, scale_name
+    return out, format_key(scale_name, tonic)
 
 
 def autotune(data, sr=SR, strength=0.5, snap_cents=50, f0_floor=75,
