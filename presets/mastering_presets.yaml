@@ -513,10 +513,10 @@ presets:
     hpf_hz: 95
     working_lufs: -20
     tune:
-      strength: 0.48
-      snap: 40
+      strength: 0.4
+      snap: 32
       scale: auto
-      vibrato_keep: 0.94
+      vibrato_keep: 0.95
     leveler:
       target_db: -19
       max_db: 2.5
@@ -536,7 +536,7 @@ presets:
       mix: 0.28
     eq_low_shelf:
       freq: 120
-      gain_db: 4.0
+      gain_db: 4.5
     eq_dip:
       freq: 1800
       gain_db: 0.0
@@ -547,7 +547,7 @@ presets:
       q: 0.9
     eq_gloss:
       freq: 9500
-      gain_db: 3.0
+      gain_db: 4.0
       q: 0.9
     eq_air_shelf:
       freq: 13500
@@ -557,12 +557,12 @@ presets:
       ratio: 6.0
       freq: 7300
     warmth:
-      drive_db: 4.5
-      mix: 0.46
+      drive_db: 5.5
+      mix: 0.52
     air:
       freq: 12000
-      drive_db: 2.5
-      mix: 0.38
+      drive_db: 3.0
+      mix: 0.42
     delay:
       time_s: 0.21
       feedback: 0.32
@@ -581,9 +581,9 @@ presets:
       ratio: 3.5
     eq_warm:
       freq: 240
-      gain_db: 4.0
+      gain_db: 4.5
       q: 0.8
-    gain_db: 3.0
+    gain_db: 4.5
   mix:
     vocal_gain_db: 2.0
     inst_gain_db: -3.0
@@ -619,11 +619,11 @@ presets:
       ratio: 2.2
       mix: 0.24
   ref_target:
-    warmth_db: 2.5
+    warmth_db: 6.0
     mid_db: 0.0
-    brightness_db: 1.0
-    tilt_db: -1.5
-    lufs: -10.0
+    brightness_db: 3.5
+    tilt_db: -2.5
+    lufs: -8.5
     crest_db: 8.0
     width: 0.441
 - id: vintage_tape
