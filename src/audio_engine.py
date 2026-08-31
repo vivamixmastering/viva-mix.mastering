@@ -882,3 +882,71 @@ def mix_and_master(vocal, inst, sr, mx, master):
 
     y, mrep = master_chain(y, sr, master)
     return y, rep + mrep
+
+
+def mix_only(vocal, inst, sr, mx):
+    """میکسِ خالص دو استمِ از قبل مسترشده — بدون مستر دوباره و بدون زنجیرهٔ وکال.
+
+    برای وقتی که کاربر وکال و بیت رو جدا مستر کرده و فقط بالانس/میکس می‌خواد.
+    خیلی سبک‌تر از mix_and_master (نه اتوتیون، نه زنجیرهٔ کامل، نه مستر) →
+    روی فایل‌های بلند OOM نمی‌شه.
+
+    مراحل: ducking (اختیاری) → بالانس خودکار وکال → چسب باس ملایم (اختیاری)
+           → پهنا (اختیاری) → سقف ایمن (بدون تغییر بلندی).
+    """
+    from pedalboard import Compressor
+
+    rep = []
+    vocal = to_stereo(vocal.astype(np.float32, copy=False))
+    inst = to_stereo(inst.astype(np.float32, copy=False))
+    n = max(len(vocal), len(inst))
+    if len(vocal) < n:
+        vocal = np.pad(vocal, ((0, n - len(vocal)), (0, 0)))
+    if len(inst) < n:
+        inst = np.pad(inst, ((0, n - len(inst)), (0, 0)))
+
+    duck_db = mx.get("duck_db", 0.0)
+    if duck_db:
+        inst = duck_under_vocal(inst, vocal, sr, duck_db)
+        rep.append(f"جا باز کردن بیت برای وکال (Ducking {duck_db}dB)")
+
+    vg = mx.get("vocal_gain_db", 0.0)
+    ig = mx.get("inst_gain_db", 0.0)
+    np.multiply(vocal, np.float32(db2lin(vg)), out=vocal)
+    np.multiply(inst, np.float32(db2lin(ig)), out=inst)
+
+    # بالانس خودکار: وکال در سطح هدف نسبت به بستر ساز (مستقل از سطح فایل‌ها)
+    lead_db = mx.get("vocal_lead_db")
+    if lead_db is not None:
+        vrms = float(lin2db(np.sqrt(np.mean(np.square(vocal))) + 1e-12))
+        irms = float(lin2db(np.sqrt(np.mean(np.square(inst))) + 1e-12))
+        adj = float(np.clip((irms + lead_db) - vrms, -12.0, 12.0))
+        if abs(adj) > 0.1:
+            np.multiply(vocal, np.float32(db2lin(adj)), out=vocal)
+            rep.append(f"بالانس خودکار وکال (هدف {lead_db:+g}dB بالای بیت، "
+                       f"اصلاح {adj:+.1f}dB)")
+
+    y = vocal + inst
+    rep.append(f"بالانس: وکال {vg:+g}dB / موزیک {ig:+g}dB")
+
+    # چسب باس ملایم (گلو — چسبندگی، بدون تغییر بلندی)
+    gr = mx.get("glue_ratio")
+    if gr:
+        y = np.asarray(
+            Compressor(threshold_db=-6.0, ratio=float(gr), attack_ms=30.0,
+                       release_ms=250.0)(y, sr), dtype=np.float32)
+        rep.append(f"چسب باس ملایم ({gr}:۱) — انسجام بدون مستر دوباره")
+
+    # پهنا (اختیاری)
+    w = mx.get("width", 1.0)
+    if abs(w - 1.0) > 1e-4:
+        y = width_ms(y, w)
+        rep.append(f"پهنای استریو ({int(w * 100)}٪)")
+
+    # سقف ایمن — بدون تغییر بلندی، فقط جلوگیری از کلیپ
+    pk = float(np.max(np.abs(y)))
+    if pk > 0.985:
+        y = (y * np.float32(0.985 / pk)).astype(np.float32)
+        rep.append("سقف ایمن (بدون تغییر بلندی مستر)")
+
+    return y.astype(np.float32), rep

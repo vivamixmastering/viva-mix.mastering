@@ -19,7 +19,7 @@ import yaml
 from config import PRESETS_FILE, TMP_DIR
 from src.audio_engine import (
     SR, db2lin, duck_under_vocal, encode_mp3, load_audio, master_chain,
-    mix_and_master, save_wav, to_stereo, vocal_chain,
+    mix_and_master, mix_only, save_wav, to_stereo, vocal_chain,
 )
 from src.match_eq import (
     apply_match_eq, apply_reference_target, build_target_profile,
@@ -43,6 +43,22 @@ def get_preset(pid):
         if p["id"] == pid:
             return p
     return PRESETS[0]
+
+
+def load_mix_models():
+    """مدل‌های میکسِ خالص (برای دو استمِ از قبل مسترشده)."""
+    with open(PRESETS_FILE, encoding="utf-8") as f:
+        return yaml.safe_load(f).get("mix_models", [])
+
+
+MIX_MODELS = load_mix_models()
+
+
+def get_mix_model(mid):
+    for m in MIX_MODELS:
+        if m["id"] == mid:
+            return m
+    return MIX_MODELS[0] if MIX_MODELS else {}
 
 
 # ══════════════════ جداسازی هوشمند (Demucs) ══════════════════
@@ -204,6 +220,40 @@ def process_mode(paths, mode, preset, workdir=None, match=None):
         _gc.collect()
 
     wav = workdir / f"out_{int(time.time())}.wav"
+    save_wav(wav, y, sr)
+    try:
+        mp3 = wav.with_suffix(".mp3")
+        encode_mp3(wav, mp3)
+        out = mp3
+    except Exception as e:
+        log.warning("MP3 encode failed: %s", e)
+        out = wav
+    return out, rep, time.time() - t0
+
+
+# ══════════════════ میکس خالص (دو استم مسترشده) ══════════════════
+
+def process_mix(paths, model, workdir=None):
+    """میکس دو فایلِ از قبل مسترشده (وکال + بیت) — فقط بالانس، بدون مستر دوباره.
+
+    خروجی: (مسیر فایل نهایی, لیست گزارش, ثانیه زمان)
+    """
+    workdir = Path(workdir or TMP_DIR)
+    t0 = time.time()
+    header = f"🎛️ مدل میکس: {model.get('name', '')}"
+
+    vx, sr = load_audio(paths["vocal"])
+    ix, _ = load_audio(paths["inst"])
+
+    # وکال و بیت جدا لود می‌شن و هم‌طول می‌شن؛ فقط بالانس سبک (بدون اتوتیون/مستر)
+    y, mixrep = mix_only(vx, ix, sr, model)
+    del vx, ix
+    import gc as _gc
+    _gc.collect()
+
+    rep = [header, "🎧 میکس خالص (استم‌های مسترشده):"] + mixrep
+
+    wav = workdir / f"mix_{int(time.time())}.wav"
     save_wav(wav, y, sr)
     try:
         mp3 = wav.with_suffix(".mp3")

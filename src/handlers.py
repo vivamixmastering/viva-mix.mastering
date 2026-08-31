@@ -33,7 +33,8 @@ from config import ADMIN_ID, MAX_FILE_SIZE, TMP_DIR
 from src import power
 from src.match_eq import analyze as analyze_reference
 from src.pipeline import (
-    get_preset, load_presets, process_mode, process_reference,
+    get_mix_model, get_preset, load_mix_models, load_presets,
+    process_mix, process_mode, process_reference,
     separate_stems, smart_available,
 )
 
@@ -55,6 +56,7 @@ class Step(StatesGroup):
     wait_file2 = State()       # در انتظار فایل دوم (وکال+بیت)
     wait_mode = State()
     wait_preset = State()
+    wait_mixmodel = State()    # در انتظار انتخاب مدل میکس خالص
 
 
 # ══════════════════ ابزارهای کمکی ══════════════════
@@ -121,6 +123,7 @@ def _mode_kb():
     b.button(text="🎤 وکال خالی", callback_data="m:vocal")
     b.button(text="🎵 آهنگ کامل (فقط مستر)", callback_data="m:full")
     b.button(text="🎛️ وکال + بیت (دو فایل)", callback_data="m:two")
+    b.button(text="🔀 میکس خالص (استم‌های مسترشده)", callback_data="m:mix")
     b.button(text="🧹 وکال+بیت (جداسازی خودم)", callback_data="m:two_bleed")
     b.button(text="✨ هوشمند (جداسازی خودکار)", callback_data="m:smart")
     b.button(text="🎯 مطابق مرجع (بدون پریست)", callback_data="m:match")
@@ -132,6 +135,14 @@ def _preset_kb():
     b = _kb()
     for p in load_presets():
         b.button(text=p["name"], callback_data=f"p:{p['id']}")
+    b.adjust(1)
+    return b.as_markup()
+
+
+def _mixmodel_kb():
+    b = _kb()
+    for m in load_mix_models():
+        b.button(text=m["name"], callback_data=f"x:{m['id']}")
     b.adjust(1)
     return b.as_markup()
 
@@ -487,6 +498,11 @@ async def on_mode(cb: CallbackQuery, state: FSMContext):
         await state.set_state(Step.wait_file2)
         await cb.message.answer("فایل دوم (بیت/موزیک) رو بفرست 👇")
         return
+    if mode == "mix" and not second:
+        await cb.answer("برای میکس خالص دو فایل لازمه: وکال + بیت (هر دو مسترشده)")
+        await state.set_state(Step.wait_file2)
+        await cb.message.answer("فایل دوم (بیت/موزیک مسترشده) رو بفرست 👇")
+        return
     if mode == "smart":
         ok, why = smart_available()
         if not ok:
@@ -499,6 +515,17 @@ async def on_mode(cb: CallbackQuery, state: FSMContext):
             await cb.answer("اول با /match یا دکمهٔ «تطبیق با مرجع» یه آهنگ مرجع بده.", show_alert=True)
             return
         await _run_reference(cb, state, first, second)
+        return
+
+    # ── میکس خالص: انتخاب مدل میکس (نه پریست مستر) ──
+    if mode == "mix":
+        await state.update_data(mode=mode)
+        await state.set_state(Step.wait_mixmodel)
+        await cb.message.edit_text(
+            "🔀 <b>میکس خالص — یک مدل میکس انتخاب کن:</b>\n"
+            "وکال و بیتِ مسترشده رو فقط بالانس می‌کنم (بدون مستر دوباره).",
+            reply_markup=_mixmodel_kb(), parse_mode="HTML")
+        await cb.answer()
         return
 
     await state.update_data(mode=mode)
@@ -650,6 +677,55 @@ async def on_preset(cb: CallbackQuery, state: FSMContext):
             await progress.edit_text(f"❌ پردازش خطا داد:\n{e}")
         except Exception:
             await cb.message.answer(f"❌ پردازش خطا داد:\n{e}")
+    finally:
+        await state.clear()
+
+
+# ══════════════════ انتخاب مدل میکس خالص ══════════════════
+
+@router.callback_query(F.data.startswith("x:"))
+async def on_mixmodel(cb: CallbackQuery, state: FSMContext):
+    if not power.is_on():
+        await cb.answer("ربات خاموشه — /on بزن")
+        return
+    mid = cb.data.split(":", 1)[1]
+    ds = await state.get_data()
+    first = ds.get("first")
+    second = ds.get("second")
+    if not first or not second:
+        await cb.answer("اول دو فایل (وکال + بیت مسترشده) بفرست!")
+        return
+
+    model = get_mix_model(mid)
+    workdir = Path(TMP_DIR) / f"job_{uuid.uuid4().hex}"
+    workdir.mkdir(parents=True, exist_ok=True)
+
+    progress = await cb.message.edit_text(
+        f"⏳ میکس خالص با مدل «{model.get('name', '')}»...\n"
+        f"🧠 فقط بالانس (بدون مستر دوباره)\n" + SEP + "\n"
+        "چند لحظه طول می‌کشه 🙏", parse_mode="HTML")
+
+    try:
+        paths = {"vocal": first["path"], "inst": second["path"]}
+        out, rep, dt = await _run_async(process_mix, paths, model, workdir)
+        size_mb = Path(out).stat().st_size / 1e6
+
+        lines = ["✅ <b>میکس خالص تموم شد!</b>", SEP,
+                 f"⏱ زمان: {dt:.0f} ثانیه",
+                 f"📦 حجم: {size_mb:.1f} مگابایت",
+                 f"🔀 مدل: {model.get('name', '')}"]
+        lines += [SEP, "<b>🧾 مراحل:</b>"] + rep
+        await progress.delete()
+        await cb.message.answer("\n".join(lines), parse_mode="HTML")
+        await cb.message.answer_audio(
+            FSInputFile(out, filename="final_mix.mp3"),
+            title=f"میکس {model.get('name', '')}", performer="Viva MixMaster")
+    except Exception as e:
+        log.exception("mix failed")
+        try:
+            await progress.edit_text(f"❌ میکس خطا داد:\n{e}")
+        except Exception:
+            await cb.message.answer(f"❌ میکس خطا داد:\n{e}")
     finally:
         await state.clear()
 
