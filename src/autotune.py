@@ -328,9 +328,16 @@ def _tune_segment(x_mono, sr, strength, snap_cents, f0_floor, f0_ceil,
 
     # بدون blend دومین‌زمانی — جابه‌جایی کوک کامل انجام شده و فیزر/بیiting نداریم
     tuned = y
-    # حفظ هوای اصلی بالای کات‌آف تا جزئیات ریز از بین نره
+    # ── خشک/تر بر اساس strength ──
+    # مشکل اصلی صدای «رباتی/پشت تلفنی» از بازسازی کامل WORLD می‌آد، نه از قدرت
+    # اصلاح نت؛ حتی strength=0.05 هم کل وکال از WORLD رد می‌شد و تایمبر عوض می‌شد.
+    # حالا هرچی strength کمتر باشه، سهم «صدای اصلی» در بدنهٔ (زیر کات‌آف) بیشتره →
+    # strength=0.05 یعنی ۹۵٪ صدای اصلی + ۵٪ تیون → واقعاً طبیعی و غیررباتیک.
+    dry = float(np.clip(1.0 - strength, 0.0, 1.0))
     air = highpass(mid, sr, CROSSOVER, order=2)
-    body = lowpass(tuned, sr, CROSSOVER, order=2)
+    body_tuned = lowpass(tuned, sr, CROSSOVER, order=2)
+    body_orig = lowpass(mid, sr, CROSSOVER, order=2)
+    body = body_tuned * (1.0 - dry) + body_orig * dry
     out = (body + air).astype(np.float32)
     # گارد پیک: سنتز WORLD + جمع باند هوا می‌تونه از سقف رد بشه → بدون این،
     # ذخیرهٔ PCM_16 کلیپ می‌کرد
