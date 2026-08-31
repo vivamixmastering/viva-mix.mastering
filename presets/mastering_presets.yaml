@@ -223,19 +223,19 @@ presets:
       target_db: -19
       max_db: 2.5
     comp1:
-      threshold_db: -14
-      ratio: 4.0
-      attack_ms: 4
-      release_ms: 80
+      threshold_db: -16
+      ratio: 2.8
+      attack_ms: 8
+      release_ms: 90
     comp2:
       threshold_db: -16
-      ratio: 3.0
-      attack_ms: 20
-      release_ms: 260
+      ratio: 2.0
+      attack_ms: 22
+      release_ms: 280
     parallel:
       threshold_db: -36
       ratio: 8
-      mix: 0.3
+      mix: 0.34
     eq_low_shelf:
       freq: 110
       gain_db: 3.0
@@ -259,8 +259,8 @@ presets:
       ratio: 6.0
       freq: 7300
     warmth:
-      drive_db: 4.5
-      mix: 0.5
+      drive_db: 5.0
+      mix: 0.55
     air:
       freq: 12000
       drive_db: 5.0
@@ -275,30 +275,30 @@ presets:
       wet: 0.3
     out_lufs: -12
     deplosive:
-      threshold_db: -14.0
-      ratio: 5.0
+      threshold_db: -12.0
+      ratio: 4.0
     harshness:
       freq: 3500.0
       threshold_db: -22.0
       ratio: 3.5
     eq_warm:
       freq: 240
-      gain_db: 3.5
+      gain_db: 4.0
       q: 0.8
-    gain_db: 4.2
+    gain_db: 5.0
     silk:
       freq: 6000
-      drive_db: 1.5
-      mix: 0.45
+      drive_db: 2.0
+      mix: 0.55
     stereo_repair: true
     double:
       enabled: true
       delay_ms: 18.0
       depth_ms: 6.0
       rate_hz: 0.6
-      mix: 0.35
-      back_gain: 0.3
-      reverb_wet: 0.1
+      mix: 0.4
+      back_gain: 0.4
+      reverb_wet: 0.18
       room: 0.45
       damping: 0.5
   mix:
@@ -315,15 +315,15 @@ presets:
       attack_ms: 30
       release_ms: 300
     eq_low_shelf:
-      freq: 90
-      gain_db: 2.5
+      freq: 85
+      gain_db: 2.0
     eq_high_shelf:
       freq: 11000
-      gain_db: 3.0
+      gain_db: 4.0
     width: 1.08
     sat:
       drive_db: 2.5
-      mix: 0.25
+      mix: 0.2
     clip:
       ceiling_db: -2.5
     lufs: -9.5
@@ -334,12 +334,12 @@ presets:
       mix: 0.18
     eq_gloss:
       freq: 9500
-      gain_db: 2.5
+      gain_db: 3.0
       q: 0.9
     silk:
       freq: 6000
-      drive_db: 1.2
-      mix: 0.35
+      drive_db: 1.5
+      mix: 0.4
 - id: acoustic_natural
   name: 🎸 آکوستیک طبیعی
   desc: شفاف و دست‌نخورده با جلای ملایم — کمترین فشرده‌سازی، برای آکوستیک و لایو
@@ -552,19 +552,19 @@ presets:
       target_db: -19
       max_db: 2.5
     comp1:
-      threshold_db: -14
-      ratio: 4.0
-      attack_ms: 4
-      release_ms: 80
+      threshold_db: -16
+      ratio: 2.8
+      attack_ms: 8
+      release_ms: 90
     comp2:
       threshold_db: -16
-      ratio: 3.0
-      attack_ms: 20
-      release_ms: 260
+      ratio: 2.0
+      attack_ms: 22
+      release_ms: 280
     parallel:
       threshold_db: -36
       ratio: 8
-      mix: 0.3
+      mix: 0.34
     eq_low_shelf:
       freq: 120
       gain_db: 2.5
@@ -588,8 +588,8 @@ presets:
       ratio: 6.0
       freq: 7300
     warmth:
-      drive_db: 4.5
-      mix: 0.5
+      drive_db: 5.0
+      mix: 0.55
     air:
       freq: 12000
       drive_db: 5.0
@@ -604,30 +604,30 @@ presets:
       wet: 0.3
     out_lufs: -12
     deplosive:
-      threshold_db: -14.0
-      ratio: 5.0
+      threshold_db: -12.0
+      ratio: 4.0
     harshness:
       freq: 3500.0
       threshold_db: -22.0
       ratio: 3.5
     eq_warm:
       freq: 240
-      gain_db: 3.5
+      gain_db: 4.0
       q: 0.8
-    gain_db: 4.8
+    gain_db: 5.8
     silk:
       freq: 6000
-      drive_db: 1.5
-      mix: 0.45
+      drive_db: 2.0
+      mix: 0.55
     stereo_repair: true
     double:
       enabled: true
       delay_ms: 18.0
       depth_ms: 6.0
       rate_hz: 0.6
-      mix: 0.35
-      back_gain: 0.3
-      reverb_wet: 0.1
+      mix: 0.4
+      back_gain: 0.4
+      reverb_wet: 0.18
       room: 0.45
       damping: 0.5
   mix:
@@ -649,26 +649,26 @@ presets:
       release_ms: 240
     eq_low_shelf:
       freq: 85
-      gain_db: 1.5
+      gain_db: 2.0
     eq_high_shelf:
       freq: 11000
-      gain_db: 3.0
+      gain_db: 4.0
     width: 1.12
     sat:
-      drive_db: 2.0
-      mix: 0.18
+      drive_db: 2.5
+      mix: 0.2
     clip:
       ceiling_db: -2.2
     lufs: -9.5
     ceiling: -1.0
     eq_gloss:
       freq: 9500
-      gain_db: 2.5
+      gain_db: 3.0
       q: 0.9
     silk:
       freq: 6000
-      drive_db: 1.2
-      mix: 0.35
+      drive_db: 1.5
+      mix: 0.4
 - id: viva
   name: 🌟 ویوا
   desc: وکال گرم، پرقدرت و براق + مسترینگ برنده — اتوتیون ملایم، حضور و درخشش بالا
@@ -684,19 +684,19 @@ presets:
       target_db: -19
       max_db: 2.5
     comp1:
-      threshold_db: -14
-      ratio: 4.0
-      attack_ms: 4
-      release_ms: 80
+      threshold_db: -16
+      ratio: 2.8
+      attack_ms: 8
+      release_ms: 90
     comp2:
       threshold_db: -16
-      ratio: 3.0
-      attack_ms: 20
-      release_ms: 260
+      ratio: 2.0
+      attack_ms: 22
+      release_ms: 280
     parallel:
       threshold_db: -36
       ratio: 8
-      mix: 0.3
+      mix: 0.34
     eq_low_shelf:
       freq: 120
       gain_db: 3.0
@@ -720,8 +720,8 @@ presets:
       ratio: 6.0
       freq: 7300
     warmth:
-      drive_db: 4.5
-      mix: 0.5
+      drive_db: 5.0
+      mix: 0.55
     air:
       freq: 12000
       drive_db: 5.0
@@ -736,30 +736,30 @@ presets:
       wet: 0.3
     out_lufs: -12
     deplosive:
-      threshold_db: -14.0
-      ratio: 5.0
+      threshold_db: -12.0
+      ratio: 4.0
     harshness:
       freq: 3500.0
       threshold_db: -22.0
       ratio: 3.5
     eq_warm:
       freq: 240
-      gain_db: 3.5
+      gain_db: 4.0
       q: 0.8
-    gain_db: 5.4
+    gain_db: 6.5
     silk:
       freq: 6000
-      drive_db: 1.5
-      mix: 0.45
+      drive_db: 2.0
+      mix: 0.55
     stereo_repair: true
     double:
       enabled: true
       delay_ms: 18.0
       depth_ms: 6.0
       rate_hz: 0.6
-      mix: 0.35
-      back_gain: 0.3
-      reverb_wet: 0.1
+      mix: 0.4
+      back_gain: 0.4
+      reverb_wet: 0.18
       room: 0.45
       damping: 0.5
   mix:
@@ -779,28 +779,28 @@ presets:
       ratio: 1.7
       attack_ms: 20
       release_ms: 240
-    eq_low_shelf: &id003
+    eq_low_shelf:
       freq: 85
-      gain_db: 1.5
+      gain_db: 2.0
     eq_high_shelf:
       freq: 11000
-      gain_db: 3.0
+      gain_db: 4.0
     width: 1.12
-    sat: &id004
-      drive_db: 2.0
-      mix: 0.18
-    clip: &id005
+    sat:
+      drive_db: 2.5
+      mix: 0.2
+    clip: &id003
       ceiling_db: -2.2
     lufs: -9.5
     ceiling: -1.0
     eq_gloss:
       freq: 9500
-      gain_db: 2.5
+      gain_db: 3.0
       q: 0.9
     silk:
       freq: 6000
-      drive_db: 1.2
-      mix: 0.35
+      drive_db: 1.5
+      mix: 0.4
 - id: viva_bedler
   name: 🎵 ویوا بدلر
   desc: مسترینگ بیت/آهنگ کامل — همون تنظیم برندهٔ دیشب، بدون تغییر تُنال
@@ -816,19 +816,19 @@ presets:
       target_db: -19
       max_db: 2.5
     comp1:
-      threshold_db: -14
-      ratio: 4.0
-      attack_ms: 4
-      release_ms: 80
+      threshold_db: -16
+      ratio: 2.8
+      attack_ms: 8
+      release_ms: 90
     comp2:
       threshold_db: -16
-      ratio: 3.0
-      attack_ms: 20
-      release_ms: 260
+      ratio: 2.0
+      attack_ms: 22
+      release_ms: 280
     parallel:
       threshold_db: -36
       ratio: 8
-      mix: 0.3
+      mix: 0.34
     eq_low_shelf:
       freq: 120
       gain_db: 2.0
@@ -852,8 +852,8 @@ presets:
       ratio: 6.0
       freq: 7300
     warmth:
-      drive_db: 4.5
-      mix: 0.5
+      drive_db: 5.0
+      mix: 0.55
     air:
       freq: 12000
       drive_db: 5.0
@@ -868,30 +868,30 @@ presets:
       wet: 0.3
     out_lufs: -14
     deplosive:
-      threshold_db: -14.0
-      ratio: 5.0
+      threshold_db: -12.0
+      ratio: 4.0
     harshness:
       freq: 3500.0
       threshold_db: -22.0
       ratio: 3.5
     eq_warm:
       freq: 240
-      gain_db: 3.5
+      gain_db: 4.0
       q: 0.8
-    gain_db: 4.2
+    gain_db: 5.0
     silk:
       freq: 6000
-      drive_db: 1.5
-      mix: 0.45
+      drive_db: 2.0
+      mix: 0.55
     stereo_repair: true
     double:
       enabled: true
       delay_ms: 18.0
       depth_ms: 6.0
       rate_hz: 0.6
-      mix: 0.35
-      back_gain: 0.3
-      reverb_wet: 0.1
+      mix: 0.4
+      back_gain: 0.4
+      reverb_wet: 0.18
       room: 0.45
       damping: 0.5
   mix:
@@ -904,23 +904,27 @@ presets:
     hpf_hz: 25
     eq_dip: *id001
     bus_comp: *id002
-    eq_low_shelf: *id003
+    eq_low_shelf:
+      freq: 85
+      gain_db: 2.0
     eq_high_shelf:
       freq: 11000
-      gain_db: 3.0
+      gain_db: 4.0
     width: 1.12
-    sat: *id004
-    clip: *id005
+    sat:
+      drive_db: 2.5
+      mix: 0.2
+    clip: *id003
     lufs: -9.5
     ceiling: -1.0
     eq_gloss:
       freq: 9500
-      gain_db: 2.5
+      gain_db: 3.0
       q: 0.9
     silk:
       freq: 6000
-      drive_db: 1.2
-      mix: 0.35
+      drive_db: 1.5
+      mix: 0.4
 - id: vintage_tape
   name: 📼 وینتج تیپ
   desc: صدای نواری گرم دهه ۷۰ — اشباع زیاد و جلای گرمِ محدود (کاراکتر تیپ حفظ می‌شه)

@@ -12,6 +12,7 @@ import asyncio
 import logging
 
 from aiogram import Bot, Dispatcher
+from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.types import BotCommand, MenuButtonCommands
 
 from config import BOT_TOKEN
@@ -29,7 +30,9 @@ async def main() -> None:
         log.error("❌ توکن ربات پیدا نشد! فایل .env رو بساز و BOT_TOKEN رو توش بذار.")
         return
 
-    bot = Bot(token=BOT_TOKEN)
+    # سشن با timeout طولانی‌تر — ارسال فایل‌های صوتی بزرگ timeout نشه
+    session = AiohttpSession(timeout=600)
+    bot = Bot(token=BOT_TOKEN, session=session)
     dp = Dispatcher()
     dp.include_router(router)
 

@@ -59,7 +59,7 @@ def decode_to_wav(path, out_wav):
         check=True, capture_output=True,
     )
 
-def encode_mp3(wav_path, mp3_path, bitrate="320k"):
+def encode_mp3(wav_path, mp3_path, bitrate="192k"):
     exe = ffmpeg_exe()
     if not exe:
         raise RuntimeError("ffmpeg پیدا نشد")

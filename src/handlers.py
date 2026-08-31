@@ -35,7 +35,6 @@ from src.match_eq import analyze as analyze_reference
 from src.pipeline import (
     get_mix_model, get_preset, load_mix_models, load_presets,
     process_mix, process_mode, process_reference,
-    separate_stems, smart_available,
 )
 
 log = logging.getLogger("handlers")
@@ -122,10 +121,7 @@ def _mode_kb():
     b = _kb()
     b.button(text="🎤 وکال خالی", callback_data="m:vocal")
     b.button(text="🎵 آهنگ کامل (فقط مستر)", callback_data="m:full")
-    b.button(text="🎛️ وکال + بیت (دو فایل)", callback_data="m:two")
     b.button(text="🔀 میکس خالص (استم‌های مسترشده)", callback_data="m:mix")
-    b.button(text="🧹 وکال+بیت (جداسازی خودم)", callback_data="m:two_bleed")
-    b.button(text="✨ هوشمند (جداسازی خودکار)", callback_data="m:smart")
     b.button(text="🎯 مطابق مرجع (بدون پریست)", callback_data="m:match")
     b.adjust(2)
     return b.as_markup()
@@ -163,10 +159,8 @@ async def _ask_mode(msg, state, edit=False):
     await state.set_state(Step.wait_mode)
     text = ("🎛️ <b>حالت پردازش</b>\n" + SEP + "\n"
             "🎤 <b>وکال خالی</b> — فقط صدای خودت؛ زنجیرهٔ کامل وکال\n"
-            "🎵 <b>آهنگ کامل</b> — بدون جداسازی؛ فقط مسترینگ\n"
-            "🎛️ <b>وکال + بیت</b> — دو فایل (وکال تمیز)؛ میکس و مستر\n"
-            "🧹 <b>جداسازی خودم</b> — وکال نشت‌دار خودت؛ پاکسازی خودکار\n"
-            "✨ <b>هوشمند</b> — ربات وکال رو با Demucs جدا می‌کنه\n"
+            "🎵 <b>آهنگ کامل</b> — فقط مسترینگ (زنجیرهٔ بیت)\n"
+            "🔀 <b>میکس خالص</b> — دو استمِ مسترشده (وکال + بیت)؛ فقط بالانس\n"
             "🎯 <b>مطابق مرجع</b> — بدون پریست، دقیقاً با منحنی آهنگ مرجع")
     if edit:
         await msg.edit_text(text, reply_markup=_mode_kb(), parse_mode="HTML")
@@ -182,13 +176,12 @@ async def cmd_start(msg: Message):
     kb.button(text="🎤 شروع میکس و مستر", callback_data="menu:howto")
     kb.button(text="🎚️ پریست‌ها", callback_data="menu:presets")
     kb.button(text="🎯 تطبیق با مرجع (Match EQ)", callback_data="menu:match")
-    kb.button(text="✨ حالت هوشمند چیه؟", callback_data="menu:smart")
     kb.adjust(1)
     await msg.answer(
         "🎚️ <b>ویوا میکس مستر</b>\n" + SEP + "\n"
         "استودیوی خودکار تلگرامی — میکس و مستر حرفه‌ای وکال و بیت.\n\n"
         "<b>روش کار:</b>\n"
-        "۱️⃣ فایل صوتی بفرست (وکال / آهنگ کامل / وکال+بیت)\n"
+        "۱️⃣ فایل صوتی بفرست (وکال / آهنگ کامل / دو استم مسترشده)\n"
         "۲️⃣ حالت پردازش رو انتخاب کن\n"
         "۳️⃣ یکی از ۱۲ پریست حرفه‌ای رو بزن\n"
         "۴️⃣ خروجی میکس‌شده رو تحویل بگیر ✅\n\n"
@@ -203,7 +196,7 @@ async def cb_howto(cb: CallbackQuery):
     await cb.message.answer(
         "📥 <b>راهنمای سریع</b>\n" + SEP + "\n"
         "• فایل صوتی بفرست (mp3 / wav / ogg / ویس، تا ۲۰ مگ)\n"
-        "• برای «وکال + بیت» دو فایل پشت سر هم بفرست\n"
+        "• برای «میکس خالص» دو استمِ مسترشده (وکال + بیت) پشت سر هم بفرست\n"
         "• حالت و پریست رو انتخاب کن\n"
         "• فایل نهایی برمی‌گرده 🎧\n" + SEP + "\n"
         "🎯 برای تطبیق با آهنگ دلخواه، اول دکمهٔ «تطبیق با مرجع» رو بزن.",
@@ -215,21 +208,6 @@ async def cb_howto(cb: CallbackQuery):
 @router.callback_query(F.data == "menu:presets")
 async def cb_presets(cb: CallbackQuery):
     await cb.message.answer(_presets_text(), parse_mode="HTML")
-    await cb.answer()
-
-
-@router.callback_query(F.data == "menu:smart")
-async def cb_smart(cb: CallbackQuery):
-    ok, why = smart_available()
-    state = ("✅ فعاله" if ok else f"❌ غیرفعاله — {why}")
-    await cb.message.answer(
-        "✨ <b>حالت هوشمند</b>\n" + SEP + "\n"
-        "آهنگ کامل می‌فرستی، ربات با هوش مصنوعی (Demucs) وکال رو از موزیک "
-        "جدا می‌کنه، هر دو رو جدا پردازش می‌کنه و میکس و مستر نهایی انجام می‌ده.\n"
-        + SEP + "\n"
-        f"وضعیت روی سرور فعلی: {state}",
-        parse_mode="HTML",
-    )
     await cb.answer()
 
 
@@ -493,21 +471,11 @@ async def on_mode(cb: CallbackQuery, state: FSMContext):
         await cb.answer("اول یک فایل صوتی بفرست!")
         return
 
-    if mode in ("two", "two_bleed") and not second:
-        await cb.answer("برای این حالت دو فایل لازمه: وکال + بیت")
-        await state.set_state(Step.wait_file2)
-        await cb.message.answer("فایل دوم (بیت/موزیک) رو بفرست 👇")
-        return
     if mode == "mix" and not second:
         await cb.answer("برای میکس خالص دو فایل لازمه: وکال + بیت (هر دو مسترشده)")
         await state.set_state(Step.wait_file2)
         await cb.message.answer("فایل دوم (بیت/موزیک مسترشده) رو بفرست 👇")
         return
-    if mode == "smart":
-        ok, why = smart_available()
-        if not ok:
-            await cb.answer(why, show_alert=True)
-            return
 
     # ── حالت مطابق مرجع: بدون پریست، مستقیم پردازش ──
     if mode == "match":
@@ -639,18 +607,6 @@ async def on_preset(cb: CallbackQuery, state: FSMContext):
         paths = {"vocal": first["path"]}
         if mode == "full":
             paths["full"] = first["path"]
-        elif mode in ("two", "two_bleed", "smart"):
-            if mode == "smart":
-                await progress.edit_text("✨ در حال جداسازی وکال با هوش مصنوعی "
-                                         "(Demucs)...\nاین مرحله سنگین‌ترین مرحله‌ست، "
-                                         "ممکنه چند دقیقه طول بکشه ⏳")
-                vp, ip = await _run_async(separate_stems, first["path"], workdir)
-                await progress.edit_text("✨ جداسازی تموم شد! در حال پردازش...")
-                paths = {"vocal": vp, "inst": ip}
-            else:
-                ds2 = await state.get_data()
-                second = ds2.get("second") or ds.get("second")
-                paths = {"vocal": first["path"], "inst": second["path"]}
 
         out, rep, dt = await _run_async(process_mode, paths, mode, preset,
                                         workdir, match=match)
