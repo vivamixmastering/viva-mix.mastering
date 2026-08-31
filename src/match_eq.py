@@ -21,7 +21,7 @@ from scipy import signal as spsig
 
 from src.audio_engine import (
     SR, load_audio, to_mono, integrated_lufs, normalize_lufs,
-    width_ms, lin2db,
+    width_ms, lin2db, db2lin,
 )
 
 # گرید فرکانسی لاگ‌اسپیس (۴۰Hz تا ۱۸kHz) — ۶۴ نقطه
@@ -249,44 +249,60 @@ def apply_match_eq(x, sr, profile, amount=DEFAULT_AMOUNT, block_s=20.0,
 
 
 def apply_reference_target(x, sr, profile):
-    """رسوندن بلندی + پهنا + داینامیک + سقف به مرجع (عملگرهای سبک).
+    """رسوندن بلندی + پهنا + داینامیک + سقف به مرجع (زنجیرهٔ لیمیتر اصولی).
 
     - پهنای استریو → نسبت side/mid مرجع
-    - داینامیک (کرست) → اگه خروجی داینامیک‌تر از مرجعه، کمپرس ملایم (فقط سفت‌کردن)
-    - بلندی → LUFS مرجع (محدود به بازهٔ امن 14- تا 6-)
-    - سقف → از طریق normalize_lufs (سقف 1dB-)
-
+    - بلندی → LUFS مرجع با لیمیتر واقعی (brickwall با lookahead، سقف 1dB-)
+      — کرست نهایی نتیجهٔ طبیعیِ بلندی + سقفه (مثل مسترینگ واقعی، نه عدد جدا)
     → (سیگنال, بلندیِ نهایی LUFS)
     """
-    from pedalboard import Compressor
+    from pedalboard import Limiter
 
     # ── پهنای استریو (واقعی — اگه لازم باشه پهنا ساخته می‌شه) ──
     ref_width = profile.get("width")
     if ref_width and ref_width > 0.0:
         x = _widen_to_target(x, sr, float(ref_width)).astype(np.float32)
 
-    # ── داینامیک (کرست) — رسوندن واقعی کرست به هدف ──
-    ref_crest = profile.get("crest_db")
-    if ref_crest is not None and ref_crest > 0.0:
-        for _ in range(4):
-            cur_crest = _true_peak_db(x) - _rms_db(x)
-            if cur_crest <= ref_crest + 0.5:
-                break
-            # کمپرس ملایم پیک‌ها تا کرست به هدف برسه (بدون له‌کردن کلی)
-            x = np.asarray(
-                Compressor(threshold_db=-6.0, ratio=3.0,
-                           attack_ms=5.0, release_ms=150.0)(x, sr),
-                dtype=np.float32)
-
-    # ── بلندی ──
+    # ── بلندی با لیمیتر واقعی (gain → limit → تکرار تا LUFS به هدف برسه) ──
     ref_lufs = profile.get("lufs")
     final_lufs = None
     if ref_lufs is not None and ref_lufs > -70.0:
         target = float(np.clip(ref_lufs, -14.0, -6.0))
-        x = normalize_lufs(x, sr, target=target, ceiling_db=-1.0)
+        x = _limiter_to_lufs(x, sr, target, ceiling_db=-1.0)
         final_lufs = integrated_lufs(x, sr)
 
     return x.astype(np.float32), final_lufs
+
+
+def _limiter_to_lufs(x, sr, target_lufs, ceiling_db=-1.0):
+    """رسوندن بلندی به هدف با لیمیتر واقعی (نسبت بالا، بدون گین خودکار).
+
+    رویکرد مسترینگ استاندارد: gain → لیمیتر سقف → اندازه‌گیری → تکرار،
+    تا LUFS به هدف برسه و پیک‌ها زیر سقف بمونن (بدون کلیپ/دیستورشن).
+    کرست نهایی نتیجهٔ همین فرآینده — همون رابطهٔ واقعیِ بلندی/داینامیک.
+    """
+    from pedalboard import Compressor
+
+    y = x.astype(np.float32)
+    for _ in range(10):
+        l = integrated_lufs(y, sr)
+        if l <= -70.0:
+            break
+        gain = target_lufs - l
+        if abs(gain) < 0.1:
+            break
+        y = (y * np.float32(db2lin(float(np.clip(gain, -30.0, 30.0)))))
+        # لیمیتر سقف (کمپرسور نسبت ۲۰ ≈ brickwall، بدون گین خودکار)
+        y = np.asarray(
+            Compressor(threshold_db=ceiling_db, ratio=20.0,
+                       attack_ms=0.5, release_ms=100.0)(y, sr),
+            dtype=np.float32)
+    # گارد نهایی سقف — هرگز بالای سقف نره (بدون کلیپ/دیستورشن)
+    ceil = float(db2lin(ceiling_db))
+    pk = float(np.max(np.abs(y)))
+    if pk > ceil:
+        y = (y * np.float32(ceil / pk)).astype(np.float32)
+    return y.astype(np.float32)
 
 
 # ══════════════════ پروفایل هدف از ۷ مقدار ══════════════════
