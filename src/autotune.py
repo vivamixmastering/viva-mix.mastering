@@ -297,12 +297,25 @@ def _tune_segment(x_mono, sr, strength, snap_cents, f0_floor, f0_ceil,
     # (با کراس‌فید نرم که کلیک نده) و فقط واکه‌ها رو اصلاح‌کوک می‌کنیم.
     hop_ws = max(1, int(work_sr * frame_period / 1000.0))
     n_ws = min(len(x), len(y))
-    env = np.repeat(voiced.astype(np.float64), hop_ws)[:n_ws]
+
+    # پوش اوجِ هر فریم از سیگنال اصلی → تشخیص صامت‌های واک‌دار کم‌انرژی
+    n_frames = len(voiced)
+    seg_len = n_frames * hop_ws
+    xx = x[:seg_len]
+    if len(xx) < seg_len:
+        xx = np.pad(xx, (0, seg_len - len(xx)))
+    frame_peak = xx.reshape(n_frames, hop_ws).max(axis=1)
+    thr = np.percentile(frame_peak, 80) * 0.15 + 1e-9
+    quiet = frame_peak < thr
+
+    # preserve = 1 → از سیگنال اصلی؛ 0 → از سنتز تیون‌شده
+    preserve = (~voiced) | quiet
+    env = np.repeat(preserve.astype(np.float64), hop_ws)[:n_ws]
     if len(env) < n_ws:
         env = np.pad(env, (0, n_ws - len(env)))
-    k = max(1, int(0.03 * work_sr))
+    k = max(1, int(0.010 * work_sr))   # ۱۰ میلی‌ثانیه — صامت‌های کوتاه کامل حفظ شن
     env = np.convolve(env, np.ones(k) / k, mode="same")
-    y = y[:n_ws] * env + x[:n_ws] * (1.0 - env)
+    y = y[:n_ws] * (1.0 - env) + x[:n_ws] * env
 
     y = resample(y, work_sr, sr).astype(np.float32)
 
