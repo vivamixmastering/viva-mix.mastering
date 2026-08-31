@@ -197,7 +197,7 @@ def process_mode(paths, mode, preset, workdir=None, match=None):
 
 # ══════════════════ مستر مطابق مرجع (بدون پریست) ══════════════════
 
-def _combine(vocal, inst, sr, vocal_db=1.5, inst_db=-3.0, duck_db=3.0):
+def _combine(vocal, inst, sr, vocal_db=2.5, inst_db=-4.0, duck_db=3.5):
     """میکس سادهٔ وکال + بیت — بالانس و داکینگ."""
     vocal = to_stereo(vocal.astype(np.float32, copy=False))
     inst = to_stereo(inst.astype(np.float32, copy=False))

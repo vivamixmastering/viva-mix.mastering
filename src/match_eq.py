@@ -27,9 +27,13 @@ from src.audio_engine import (
 # گرید فرکانسی لاگ‌اسپیس (۴۰Hz تا ۱۸kHz) — ۶۴ نقطه
 FREQ_GRID = np.geomspace(40.0, 18000.0, 64).astype(np.float64)
 
-# محدودهٔ گین مجاز برای هر باند (dB)
-MAX_BOOST_DB = 8.0
-MAX_CUT_DB = -8.0
+# محدودهٔ گین مجاز برای هر باند (dB) — ملایم تا کیفیت له نشه
+# (قبلاً 8± بود و برای مرجع‌های تیره، های‌ها رو 14dB می‌برید → خفه و کدر)
+MAX_BOOST_DB = 3.0
+MAX_CUT_DB = -3.5
+
+# قدرت کلی تطبیق — 0.6 یعنی 60٪ راه تا مرجع (نه موبهمو)
+DEFAULT_AMOUNT = 0.6
 
 # لنگر میدرنج برای نرمال‌سازی «شکل» (مستقل از بلندی کلی)
 _MID_LO, _MID_HI = 250.0, 4000.0
@@ -126,18 +130,19 @@ def _describe(db):
     }
 
 
-def _gain_curve(x, sr, profile, amount=1.0):
-    """منحنی گین (dB) برای رسوندن x به پروفایل مرجع."""
+def _gain_curve(x, sr, profile, amount=DEFAULT_AMOUNT):
+    """منحنی گین (dB) برای رسوندن x به پروفایل مرجع — ملایم و هموار."""
     f, db = _spectrum_db(x, sr)
     db = _on_grid(f, db)
     db = _normalize_shape(db)
     db = _smooth(db)
     ref = np.asarray(profile["db"], dtype=np.float64)
     gain = np.clip((ref - db) * float(amount), MAX_CUT_DB, MAX_BOOST_DB)
-    return _smooth(gain, 7)
+    # هموارسازی سنگین‌تر → بدون تغییرات ناگهانی/رینگ
+    return _smooth(gain, 11)
 
 
-def apply_match_eq(x, sr, profile, amount=1.0, block_s=20.0, overlap_s=2.0):
+def apply_match_eq(x, sr, profile, amount=DEFAULT_AMOUNT, block_s=20.0, overlap_s=2.0):
     """اعمال Match EQ (تُنال) — بلوکی با هم‌پوشانی تا رم مستقل از طول بمونه.
 
     منحنی گین یک‌بار از کل سیگنال (welch) حساب می‌شه، بعد اعمالِ آن به‌صورت
@@ -154,7 +159,7 @@ def apply_match_eq(x, sr, profile, amount=1.0, block_s=20.0, overlap_s=2.0):
     ov = int(overlap_s * sr)
 
     # فرکانس‌های STFT و گین خطی متناظر (یک‌بار حساب می‌شه)
-    nperseg = 2048
+    nperseg = 4096
     hop = nperseg // 4
     noverlap = nperseg - hop
     fstft = np.fft.rfftfreq(nperseg, 1.0 / sr)
