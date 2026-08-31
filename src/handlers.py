@@ -33,8 +33,9 @@ from config import ADMIN_ID, MAX_FILE_SIZE, TMP_DIR
 from src import power
 from src.match_eq import analyze as analyze_reference
 from src.pipeline import (
-    get_mix_model, get_preset, load_mix_models, load_presets,
-    process_mix, process_mode, process_reference,
+    HARMONY_INTERVALS, get_mix_model, get_preset, load_mix_models,
+    load_presets, process_harmony, process_mix, process_mode,
+    process_reference,
 )
 
 log = logging.getLogger("handlers")
@@ -56,6 +57,7 @@ class Step(StatesGroup):
     wait_mode = State()
     wait_preset = State()
     wait_mixmodel = State()    # در انتظار انتخاب مدل میکس خالص
+    wait_interval = State()    # در انتظار انتخاب فاصلهٔ هارمونی (سوم/پنجم)
 
 
 # ══════════════════ ابزارهای کمکی ══════════════════
@@ -122,8 +124,19 @@ def _mode_kb():
     b.button(text="🎤 وکال خالی", callback_data="m:vocal")
     b.button(text="🎵 آهنگ کامل (فقط مستر)", callback_data="m:full")
     b.button(text="🔀 میکس خالص (استم‌های مسترشده)", callback_data="m:mix")
+    b.button(text="🎶 هارمونی (فاصله سوم/پنجم)", callback_data="m:harmony")
     b.button(text="🎯 مطابق مرجع (بدون پریست)", callback_data="m:match")
     b.adjust(2)
+    return b.as_markup()
+
+
+def _interval_kb():
+    b = _kb()
+    b.button(text="3️⃣ سوم (ماژور +4)", callback_data="h:third_maj")
+    b.button(text="3️⃣ سوم (مینور +3)", callback_data="h:third_min")
+    b.button(text="5️⃣ پنجم (+7)", callback_data="h:fifth")
+    b.button(text="🎵 سوم + پنجم (هر دو)", callback_data="h:both")
+    b.adjust(1)
     return b.as_markup()
 
 
@@ -161,6 +174,7 @@ async def _ask_mode(msg, state, edit=False):
             "🎤 <b>وکال خالی</b> — فقط صدای خودت؛ زنجیرهٔ کامل وکال\n"
             "🎵 <b>آهنگ کامل</b> — فقط مسترینگ (زنجیرهٔ بیت)\n"
             "🔀 <b>میکس خالص</b> — دو استمِ مسترشده (وکال + بیت)؛ فقط بالانس\n"
+            "🎶 <b>هارمونی</b> — وکال رو به فاصلهٔ سوم/پنجم می‌بره (برای لایه‌گذاری)\n"
             "🎯 <b>مطابق مرجع</b> — بدون پریست، دقیقاً با منحنی آهنگ مرجع")
     if edit:
         await msg.edit_text(text, reply_markup=_mode_kb(), parse_mode="HTML")
@@ -496,12 +510,56 @@ async def on_mode(cb: CallbackQuery, state: FSMContext):
         await cb.answer()
         return
 
+    # ── هارمونی: انتخاب فاصله (سوم/پنجم) ──
+    if mode == "harmony":
+        await state.update_data(mode=mode)
+        await state.set_state(Step.wait_interval)
+        await cb.message.edit_text(
+            "🎶 <b>هارمونی — کدوم فاصله؟</b>\n" + SEP + "\n"
+            "وکال رو به این فاصله جابه‌جا می‌کنم و با همون پریستِ وکال "
+            "پردازش می‌کنم تا خودت روش لایه بذاری.",
+            reply_markup=_interval_kb(), parse_mode="HTML")
+        await cb.answer()
+        return
+
     await state.update_data(mode=mode)
     await state.set_state(Step.wait_preset)
     await cb.message.edit_text(
         "🎚️ <b>عالی! حالا یکی از پریست‌ها رو انتخاب کن:</b>",
         reply_markup=_preset_kb(), parse_mode="HTML",
     )
+    await cb.answer()
+
+
+# ══════════════════ انتخاب فاصلهٔ هارمونی ══════════════════
+
+@router.callback_query(F.data.startswith("h:"))
+async def on_interval(cb: CallbackQuery, state: FSMContext):
+    if not power.is_on():
+        await cb.answer("ربات خاموشه — /on بزن")
+        return
+    iv = cb.data.split(":", 1)[1]
+    ds = await state.get_data()
+    first = ds.get("first")
+    if not first:
+        await cb.answer("اول فایل وکال بفرست!")
+        return
+
+    if iv == "both":
+        intervals = [
+            HARMONY_INTERVALS["third_maj"],
+            HARMONY_INTERVALS["fifth"],
+        ]
+    else:
+        intervals = [HARMONY_INTERVALS[iv]]
+
+    await state.update_data(mode="harmony", intervals=intervals)
+    await state.set_state(Step.wait_preset)
+    labels = " + ".join(lb for _, lb in intervals)
+    await cb.message.edit_text(
+        f"🎶 هارمونی انتخاب شد: <b>{labels}</b>\n" + SEP + "\n"
+        "🎚️ <b>حالا پریستِ وکال رو انتخاب کن:</b>",
+        reply_markup=_preset_kb(), parse_mode="HTML")
     await cb.answer()
 
 
@@ -607,6 +665,26 @@ async def on_preset(cb: CallbackQuery, state: FSMContext):
         paths = {"vocal": first["path"]}
         if mode == "full":
             paths["full"] = first["path"]
+
+        # ── هارمونی: چند فایل خروجی (هر فاصله جدا) ──
+        if mode == "harmony":
+            intervals = ds.get("intervals") or [HARMONY_INTERVALS["third_maj"]]
+            outs, rep, dt = await _run_async(process_harmony, paths, preset,
+                                             intervals, workdir)
+            await progress.delete()
+            await cb.message.answer(
+                f"✅ <b>هارمونی تموم شد!</b>\n" + SEP + "\n"
+                f"⏱ زمان: {dt:.0f} ثانیه\n"
+                f"🎛️ پریست: {preset['name']}\n" + SEP + "\n"
+                + "\n".join(rep),
+                parse_mode="HTML")
+            for path, label in outs:
+                fname = f"harmony_{preset['id']}_{label.replace(' ', '_')}.mp3"
+                await cb.message.answer_audio(
+                    FSInputFile(path, filename=fname),
+                    title=f"{preset['name']} — {label}",
+                    performer="Viva MixMaster")
+            return
 
         out, rep, dt = await _run_async(process_mode, paths, mode, preset,
                                         workdir, match=match)

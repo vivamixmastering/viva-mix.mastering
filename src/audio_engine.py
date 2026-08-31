@@ -59,7 +59,7 @@ def decode_to_wav(path, out_wav):
         check=True, capture_output=True,
     )
 
-def encode_mp3(wav_path, mp3_path, bitrate="192k"):
+def encode_mp3(wav_path, mp3_path, bitrate="320k"):
     exe = ffmpeg_exe()
     if not exe:
         raise RuntimeError("ffmpeg پیدا نشد")
@@ -720,6 +720,21 @@ def vocal_chain(x, sr, v):
         rep.append("بک‌ویس (دابل‌ترک) — استریو واقعی و حجم/گرمای بیشتر")
 
     return y.astype(np.float32), rep
+
+
+# ══════════════════ هارمونی (جابه‌جایی زیروبمی) ══════════════════
+
+def harmonize(x, sr, semitones):
+    """جابه‌جایی زیروبمی (هارمونی) بدون تغییر طول — با موتور Rubber Band
+    (کیفیت بالا، بدون آرتیفکت «چیپمونک»). semitones مثبت = زیرتر (بالا).
+
+    خروجی: استریو float32 هم‌طول ورودی.
+    """
+    from pedalboard import PitchShift
+    y = to_stereo(x).astype(np.float32)
+    return np.asarray(PitchShift(semitones=float(semitones))(y, sr),
+                      dtype=np.float32)
+
 
 # ══════════════════ زنجیره مستر ══════════════════
 

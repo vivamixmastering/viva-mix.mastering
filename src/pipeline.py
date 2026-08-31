@@ -18,8 +18,8 @@ import yaml
 
 from config import PRESETS_FILE, TMP_DIR
 from src.audio_engine import (
-    SR, db2lin, duck_under_vocal, encode_mp3, load_audio, master_chain,
-    mix_only, save_wav, to_stereo, vocal_chain,
+    SR, db2lin, duck_under_vocal, encode_mp3, harmonize, load_audio,
+    master_chain, mix_only, save_wav, to_stereo, vocal_chain,
 )
 from src.match_eq import (
     apply_match_eq, apply_reference_target, build_target_profile,
@@ -59,6 +59,14 @@ def get_mix_model(mid):
         if m["id"] == mid:
             return m
     return MIX_MODELS[0] if MIX_MODELS else {}
+
+
+# ── فاصله‌های هارمونی: (نیم‌پرده, برچسب) ──
+HARMONY_INTERVALS = {
+    "third_maj": (4, "فاصله سوم (ماژور)"),
+    "third_min": (3, "فاصله سوم (مینور)"),
+    "fifth": (7, "فاصله پنجم"),
+}
 
 
 # ══════════════════ پردازش اصلی ══════════════════
@@ -118,6 +126,39 @@ def process_mode(paths, mode, preset, workdir=None, match=None):
         log.warning("MP3 encode failed: %s", e)
         out = wav
     return out, rep, time.time() - t0
+
+
+# ══════════════════ هارمونی (فاصله سوم/پنجم) ══════════════════
+
+def process_harmony(paths, preset, intervals, workdir=None):
+    """وکال رو به فاصله‌های خواسته‌شده جابه‌جا می‌کنه و هرکدوم رو با همون
+    زنجیرهٔ وکالِ پریست پردازش می‌کنه (خروجی آمادهٔ لایه‌گذاری روی وکال اصلی).
+
+    intervals: لیست [(نیم‌پرده, برچسب), ...]
+    خروجی: (list[(مسیر فایل, برچسب)], لیست گزارش, ثانیه زمان)
+    """
+    workdir = Path(workdir or TMP_DIR)
+    t0 = time.time()
+    x, sr = load_audio(paths["vocal"])
+    header = f"🎛️ پریست: {preset['name']} • هارمونی"
+    rep = [header, "🎶 هر فاصله با زنجیرهٔ کامل وکالِ همین پریست:"]
+    outs = []
+    for semis, label in intervals:
+        hs = harmonize(x, sr, semis)
+        y, vrep = vocal_chain(hs, sr, preset.get("vocal", {}))
+        del hs
+        wav = workdir / f"harm_{semis}_{int(time.time())}.wav"
+        save_wav(wav, y, sr)
+        try:
+            mp3 = wav.with_suffix(".mp3")
+            encode_mp3(wav, mp3)
+            p = mp3
+        except Exception as e:
+            log.warning("MP3 encode failed: %s", e)
+            p = wav
+        outs.append((str(p), label))
+        rep.append(f"  • {label}: جابه‌جایی {semis:+d} نیم‌پرده + زنجیرهٔ وکال")
+    return outs, rep, time.time() - t0
 
 
 # ══════════════════ میکس خالص (دو استم مسترشده) ══════════════════
