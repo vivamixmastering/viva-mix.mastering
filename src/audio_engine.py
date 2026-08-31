@@ -428,12 +428,83 @@ def normalize_lufs(x, sr, target=-14.0, ceiling_db=-1.0, max_boost_db=12.0):
         y = y * np.float32(db2lin(-over))
     return y.astype(np.float32)
 
+# ══════════════════ ترمیم استریو + دابل‌ترک وکال ══════════════════
+
+def _stronger_channel(x):
+    """کانال قوی‌تر (انرژی بیشتر) — برای ترمیم استریوی ناقص وکال جدا‌شده."""
+    if x.ndim != 2 or x.shape[1] < 2:
+        return to_mono(x)
+    L = x[:, 0]
+    R = x[:, 1]
+    eL = float(np.dot(L, L))
+    eR = float(np.dot(R, R))
+    return L if eL >= eR else R
+
+
+def stereo_repair(x, sr):
+    """تعمیر استریوی ناقص (وکالی که از بیت جدا شده و یک کانالش ضعیفه).
+
+    کانال قوی‌تر انتخاب می‌شه و به‌عنوان هستهٔ مونوی متعادل روی هر دو کانال
+    می‌نشینه (بدون جابه‌جایی زمانی — دقیق و ژوست). عرضِ واقعی بعداً توسط
+    لایهٔ بک‌ویس (دابل) ساخته می‌شه.
+    """
+    core = _stronger_channel(x)
+    return np.stack([core, core], axis=1).astype(np.float32)
+
+
+def _double_layer(core, sr, delay_ms=18.0, depth_ms=6.0, rate_hz=0.6):
+    """بک‌ویس (دابل‌ترک): کپی با تأخیر مدوله‌شده (کورس‌مانند) → دی‌تیون طبیعی
+    و حرکت، بدون کلیک/الیاس و بدون فریزِ پایان."""
+    n = len(core)
+    t = np.arange(n, dtype=np.float64) / sr
+    d = (delay_ms / 1000.0 + (depth_ms / 1000.0) * np.sin(2.0 * np.pi * rate_hz * t)) * sr
+    idx = np.arange(n, dtype=np.float64) - d
+    idx = np.clip(idx, 0.0, float(n - 1))
+    return np.interp(idx, np.arange(n, dtype=np.float64),
+                     core.astype(np.float64)).astype(np.float32)
+
+
+def add_double_layer(y, sr, cfg):
+    """افزودن لایهٔ بک‌ویس به وکال → استریو واقعی + حجم و گرما.
+
+    وکال اصلی در مرکز می‌مونه؛ بک‌ویس (دابل) با ریورب/گین سبک (۳۰٪) روی
+    پهلوها سوار می‌شه. خروجی: L = mid + back، R = mid − back (پهنای واقعی).
+    """
+    from pedalboard import Reverb
+
+    mid = to_mono(y)
+    back = _double_layer(mid, sr,
+                         delay_ms=cfg.get("delay_ms", 18.0),
+                         depth_ms=cfg.get("depth_ms", 6.0),
+                         rate_hz=cfg.get("rate_hz", 0.6))
+    back = np.stack([back, back], axis=1)
+    if cfg.get("reverb_wet"):
+        back = Reverb(room_size=cfg.get("room", 0.45),
+                      damping=cfg.get("damping", 0.5),
+                      wet_level=cfg["reverb_wet"], dry_level=1.0,
+                      width=1.0)(back, sr)
+    back = to_mono(back) * np.float32(cfg.get("back_gain", 0.3))
+    mix = cfg.get("mix", 0.35)
+    L = mid + back * mix
+    R = mid - back * mix
+    out = np.stack([L, R], axis=1)
+    pk = float(np.max(np.abs(out)))
+    if pk > 0.985:
+        out = out * np.float32(0.985 / pk)
+    return out.astype(np.float32)
+
+
 # ══════════════════ زنجیره وکال ══════════════════
 
 def vocal_chain(x, sr, v):
     """زنجیره کامل وکال بر اساس تنظیمات پریست → (سیگنال, گزارش مراحل)"""
     rep = []
     y = to_stereo(x).astype(np.float32)
+
+    # ── ترمیم استریو: وکال جدا‌شده یک کانالش ضعیفه → کانال قوی مبنای هر دو ──
+    if v.get("stereo_repair"):
+        y = stereo_repair(y, sr)
+        rep.append("ترمیم استریو — انتخاب کانال قوی‌تر و مرکزیت واقعی")
 
     # ── حالت وکال جداسازی‌شده (نشت‌دار) ──
     # وکالی که خود کاربر با ابزار جداسازی گرفته، معمولاً کمی از موزیک هم
@@ -626,6 +697,13 @@ def vocal_chain(x, sr, v):
         if pk > 0.98:                      # گارد پیک — بدون دیستورت
             y = y * np.float32(0.98 / pk)
         rep.append(f"گین خروجی +{g:g}dB (قدرت بیشتر)")
+
+    # ── دابل‌ترک (بک‌ویس) — استریو واقعی + حجم و گرما (اختیاری) ──
+    db = v.get("double")
+    if db and db.get("enabled"):
+        y = add_double_layer(y, sr, db)
+        rep.append("بک‌ویس (دابل‌ترک) — استریو واقعی و حجم/گرمای بیشتر")
+
     return y.astype(np.float32), rep
 
 # ══════════════════ زنجیره مستر ══════════════════
