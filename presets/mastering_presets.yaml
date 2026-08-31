@@ -249,11 +249,11 @@ presets:
       q: 0.9
     eq_gloss:
       freq: 9500
-      gain_db: 5.0
+      gain_db: 6.0
       q: 0.9
     eq_air_shelf:
       freq: 13500
-      gain_db: 6.0
+      gain_db: 7.0
     deess:
       threshold_db: -24.0
       ratio: 6.0
@@ -263,7 +263,7 @@ presets:
       mix: 0.55
     air:
       freq: 12000
-      drive_db: 5.0
+      drive_db: 5.5
       mix: 0.5
     delay:
       time_s: 0.22
@@ -288,8 +288,8 @@ presets:
     gain_db: 5.0
     silk:
       freq: 6000
-      drive_db: 2.0
-      mix: 0.55
+      drive_db: 2.6
+      mix: 0.65
     stereo_repair: true
     double:
       enabled: true
@@ -578,11 +578,11 @@ presets:
       q: 0.9
     eq_gloss:
       freq: 9500
-      gain_db: 5.0
+      gain_db: 6.0
       q: 0.9
     eq_air_shelf:
       freq: 13500
-      gain_db: 6.0
+      gain_db: 7.0
     deess:
       threshold_db: -24.0
       ratio: 6.0
@@ -592,7 +592,7 @@ presets:
       mix: 0.55
     air:
       freq: 12000
-      drive_db: 5.0
+      drive_db: 5.5
       mix: 0.5
     delay:
       time_s: 0.22
@@ -617,8 +617,8 @@ presets:
     gain_db: 5.8
     silk:
       freq: 6000
-      drive_db: 2.0
-      mix: 0.55
+      drive_db: 2.6
+      mix: 0.65
     stereo_repair: true
     double:
       enabled: true
@@ -710,11 +710,11 @@ presets:
       q: 0.9
     eq_gloss:
       freq: 9500
-      gain_db: 5.0
+      gain_db: 6.0
       q: 0.9
     eq_air_shelf:
       freq: 13500
-      gain_db: 6.0
+      gain_db: 7.0
     deess:
       threshold_db: -24.0
       ratio: 6.0
@@ -724,7 +724,7 @@ presets:
       mix: 0.55
     air:
       freq: 12000
-      drive_db: 5.0
+      drive_db: 5.5
       mix: 0.5
     delay:
       time_s: 0.22
@@ -749,8 +749,8 @@ presets:
     gain_db: 6.5
     silk:
       freq: 6000
-      drive_db: 2.0
-      mix: 0.55
+      drive_db: 2.6
+      mix: 0.65
     stereo_repair: true
     double:
       enabled: true
@@ -842,11 +842,11 @@ presets:
       q: 0.9
     eq_gloss:
       freq: 9500
-      gain_db: 5.0
+      gain_db: 6.0
       q: 0.9
     eq_air_shelf:
       freq: 13500
-      gain_db: 6.0
+      gain_db: 7.0
     deess:
       threshold_db: -24.0
       ratio: 6.0
@@ -856,7 +856,7 @@ presets:
       mix: 0.55
     air:
       freq: 12000
-      drive_db: 5.0
+      drive_db: 5.5
       mix: 0.5
     delay:
       time_s: 0.22
@@ -881,8 +881,8 @@ presets:
     gain_db: 5.0
     silk:
       freq: 6000
-      drive_db: 2.0
-      mix: 0.55
+      drive_db: 2.6
+      mix: 0.65
     stereo_repair: true
     double:
       enabled: true

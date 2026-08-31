@@ -461,15 +461,18 @@ def _double_layer(core, sr, delay_ms=18.0, depth_ms=6.0, rate_hz=0.6):
     """
     x = core.astype(np.float32)
     n = len(x)
-    # مدولاسیون تاخیر به‌صورت chunk (هر 0.25s یک مقدار) → کم‌مصرف
+    # مدولاسیون تاخیر: مقدار در گره‌ها محاسبه و بین گره‌ها درون‌یابی خطی می‌شه
+    # (پیوسته → بدون کلیک/تیک). قبلاً با np.repeat پله‌ای بود و هر 0.25s
+    # یک پرش ناگهانی تاخیر = یک «تیک» ریز (۴ تیک در ثانیه) درست می‌کرد.
     chunk = max(1, int(sr * 0.25))
     nseg = (n + chunk - 1) // chunk
-    seg_t = (np.arange(nseg, dtype=np.float32) * chunk + chunk * 0.5) / sr
+    node_pos = (np.arange(nseg, dtype=np.float32) * chunk)
+    node_t = node_pos / sr
     seg_d = (delay_ms / 1000.0 + (depth_ms / 1000.0)
-             * np.sin(2.0 * np.pi * rate_hz * seg_t)).astype(np.float32) * sr
+             * np.sin(2.0 * np.pi * rate_hz * node_t)).astype(np.float32) * sr
     seg_d = np.clip(seg_d, 2.0, float(n - 2))
-    # باز کردن به ازای هر نمونه (کم‌مصرف — float32)
-    d = np.repeat(seg_d, chunk)[:n]
+    # درون‌یابی خطی بین گره‌ها → تاخیر پیوسته به ازای هر نمونه (همان طول n)
+    d = np.interp(np.arange(n, dtype=np.float32), node_pos, seg_d).astype(np.float32)
     d0 = np.floor(d).astype(np.int32)
     frac = (d - d0).astype(np.float32)
     d0 = np.clip(d0, 1, n - 2)
