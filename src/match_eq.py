@@ -286,28 +286,26 @@ def apply_reference_target(x, sr, profile):
 
 
 def _limiter_to_lufs(x, sr, target_lufs, ceiling_db=-1.0):
-    """رسوندن بلندی به هدف با لیمیتر واقعی (نسبت بالا، بدون گین خودکار).
+    """رسوندن بلندی به هدف با زنجیرهٔ گلو + گین + سقف‌گذاری صادقانه (بدون کلیپ).
 
-    رویکرد مسترینگ استاندارد: gain → لیمیتر سقف → اندازه‌گیری → تکرار،
-    تا LUFS به هدف برسه و پیک‌ها زیر سقف بمونن (بدون کلیپ/دیستورشن).
-    کرست نهایی نتیجهٔ همین فرآینده — همون رابطهٔ واقعیِ بلندی/داینامیک.
+    - یک کمپرس ملایم «گلو» (چگالی/قدرت بیشتر، کاهش کرست جزئی)
+    - گین تا هدف + سقف بدون کلیپ (normalize_lufs) — اگه کرست اجازه بده دقیقاً
+      به هدف می‌رسه؛ اگه نه، بلندترین حالتِ بدون دیستورشن رو می‌ده.
     """
     from pedalboard import Compressor
 
     y = x.astype(np.float32)
-    for _ in range(5):
+    # گلو: کمپرس ملایم برای چگالی/قدرت بیشتر (بدون له شدن داینامیک)
+    y = np.asarray(
+        Compressor(threshold_db=-10.0, ratio=2.5, attack_ms=10.0,
+                   release_ms=120.0)(y, sr), dtype=np.float32)
+    # گین تا هدف (تکرار تا همگرایی، سقف بدون کلیپ)
+    for _ in range(8):
         l = integrated_lufs(y, sr)
-        if l <= -70.0:
+        if l <= -70.0 or abs(target_lufs - l) < 0.1:
             break
-        gain = target_lufs - l
-        if abs(gain) < 0.1:
-            break
-        y *= np.float32(db2lin(float(np.clip(gain, -30.0, 30.0))))
-        # لیمیتر سقف (کمپرسور نسبت ۲۰ ≈ brickwall، بدون گین خودکار)
-        y = np.asarray(
-            Compressor(threshold_db=ceiling_db, ratio=20.0,
-                       attack_ms=0.5, release_ms=100.0)(y, sr),
-            dtype=np.float32)
+        y = normalize_lufs(y, sr, target=target_lufs,
+                           ceiling_db=ceiling_db, max_boost_db=30.0)
     # گارد نهایی سقف — هرگز بالای سقف نره (بدون کلیپ/دیستورشن)
     ceil = float(db2lin(ceiling_db))
     pk = float(np.max(np.abs(y)))
