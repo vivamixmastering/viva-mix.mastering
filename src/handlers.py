@@ -32,7 +32,10 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from config import ADMIN_ID, MAX_FILE_SIZE, TMP_DIR
 from src import power
 from src.match_eq import analyze as analyze_reference
-from src.pipeline import get_preset, load_presets, process_mode, separate_stems, smart_available
+from src.pipeline import (
+    get_preset, load_presets, process_mode, process_reference,
+    separate_stems, smart_available,
+)
 
 log = logging.getLogger("handlers")
 router = Router()
@@ -120,6 +123,7 @@ def _mode_kb():
     b.button(text="🎛️ وکال + بیت (دو فایل)", callback_data="m:two")
     b.button(text="🧹 وکال+بیت (جداسازی خودم)", callback_data="m:two_bleed")
     b.button(text="✨ هوشمند (جداسازی خودکار)", callback_data="m:smart")
+    b.button(text="🎯 مطابق مرجع (بدون پریست)", callback_data="m:match")
     b.adjust(2)
     return b.as_markup()
 
@@ -151,7 +155,8 @@ async def _ask_mode(msg, state, edit=False):
             "🎵 <b>آهنگ کامل</b> — بدون جداسازی؛ فقط مسترینگ\n"
             "🎛️ <b>وکال + بیت</b> — دو فایل (وکال تمیز)؛ میکس و مستر\n"
             "🧹 <b>جداسازی خودم</b> — وکال نشت‌دار خودت؛ پاکسازی خودکار\n"
-            "✨ <b>هوشمند</b> — ربات وکال رو با Demucs جدا می‌کنه")
+            "✨ <b>هوشمند</b> — ربات وکال رو با Demucs جدا می‌کنه\n"
+            "🎯 <b>مطابق مرجع</b> — بدون پریست، دقیقاً با منحنی آهنگ مرجع")
     if edit:
         await msg.edit_text(text, reply_markup=_mode_kb(), parse_mode="HTML")
     else:
@@ -393,22 +398,31 @@ async def on_audio(msg: Message, state: FSMContext):
         m = profile.get("mid_db", 0)
         b = profile.get("brightness_db", 0)
         t = profile.get("tilt_db", 0)
+        lufs = profile.get("lufs")
+        crest = profile.get("crest_db")
+        width = profile.get("width")
 
         def _sign(v):
             return f"{'+' if v >= 0 else ''}{v}"
 
-        await msg.answer(
-            "🎯 <b>پروفایل مرجع گرفته شد</b>\n" + SEP + "\n"
-            f"📁 <b>فایل:</b> {fname}\n" + SEP + "\n"
-            "<b>📊 تحلیل تُنال:</b>\n"
-            f"🔥 گرما (بم):      <b>{_sign(w)} dB</b>\n"
-            f"🎚️ میدرنج:          <b>{_sign(m)} dB</b>\n"
-            f"✨ درخشش (بالا):   <b>{_sign(b)} dB</b>\n"
-            f"📈 شیب تُنال:      <b>{_sign(t)} dB</b>\n" + SEP + "\n"
-            "✅ حالا <b>آهنگ / وکال / بیت خودت</b> رو بفرست.\n"
-            "پردازش طبق این منحنی + پریست انتخابی انجام می‌شه.",
-            parse_mode="HTML",
-        )
+        lines = ["🎯 <b>پروفایل مرجع گرفته شد</b>", SEP,
+                 f"📁 <b>فایل:</b> {fname}", SEP,
+                 "<b>📊 آنالیز نتیجهٔ شنیداری مرجع:</b>",
+                 f"🔥 گرما (بم):     <b>{_sign(w)} dB</b>",
+                 f"🎚️ میدرنج:         <b>{_sign(m)} dB</b>",
+                 f"✨ درخشش (بالا):  <b>{_sign(b)} dB</b>",
+                 f"📈 شیب تُنال:     <b>{_sign(t)} dB</b>"]
+        if lufs is not None:
+            lines.append(f"🔊 بلندی:         <b>{lufs} LUFS</b>")
+        if crest is not None:
+            lines.append(f"🎚️ داینامیک (کرست): <b>{crest} dB</b>")
+        if width is not None:
+            lines.append(f"🎧 پهنا (side/mid): <b>{width}</b>")
+        lines += [SEP,
+                  "✅ حالا <b>وکال و بیت خودت</b> رو بفرست (یا آهنگ کامل).",
+                  "بعد حالت «🎯 مطابق مرجع» رو بزن تا بدون پریست، دقیقاً با "
+                  "همین منحنی میکس و مستر بشه."]
+        await msg.answer("\n".join(lines), parse_mode="HTML")
         return
 
     ds = await state.get_data()
@@ -479,6 +493,14 @@ async def on_mode(cb: CallbackQuery, state: FSMContext):
             await cb.answer(why, show_alert=True)
             return
 
+    # ── حالت مطابق مرجع: بدون پریست، مستقیم پردازش ──
+    if mode == "match":
+        if not ds.get("ref_profile"):
+            await cb.answer("اول با /match یا دکمهٔ «تطبیق با مرجع» یه آهنگ مرجع بده.", show_alert=True)
+            return
+        await _run_reference(cb, state, first, second)
+        return
+
     await state.update_data(mode=mode)
     await state.set_state(Step.wait_preset)
     await cb.message.edit_text(
@@ -486,6 +508,76 @@ async def on_mode(cb: CallbackQuery, state: FSMContext):
         reply_markup=_preset_kb(), parse_mode="HTML",
     )
     await cb.answer()
+
+
+async def _run_reference(cb: CallbackQuery, state: FSMContext, first, second):
+    """پردازش مطابق مرجع: وکال/بیت جدا + میکس نهایی، بدون پریست."""
+    ds = await state.get_data()
+    profile = ds.get("ref_profile")
+    ref_name = ds.get("ref_name", "")
+
+    workdir = Path(TMP_DIR) / f"job_{uuid.uuid4().hex}"
+    workdir.mkdir(parents=True, exist_ok=True)
+
+    paths = {}
+    if second:
+        paths = {"vocal": first["path"], "inst": second["path"]}
+    else:
+        paths = {"full": first["path"]}
+
+    progress = await cb.message.edit_text(
+        "🎯 <b>مستر مطابق مرجع</b>\n" + SEP + "\n"
+        f"📁 مرجع: {ref_name}\n"
+        "در حال تطبیق تُنال + بلندی + پهنا... (بدون پریست)\n" + SEP + "\n"
+        "این کار ممکنه چند دقیقه طول بکشه 🙏",
+        parse_mode="HTML",
+    )
+
+    try:
+        full, vocal_out, inst_out, rep, dt = await _run_async(
+            process_reference, paths, profile, workdir)
+
+        lufs = profile.get("lufs")
+        crest = profile.get("crest_db")
+        width = profile.get("width")
+
+        lines = ["✅ <b>مستر مطابق مرجع تموم شد!</b>", SEP,
+                 f"⏱ زمان: {dt:.0f} ثانیه",
+                 f"📁 مرجع: {ref_name}",
+                 SEP, "<b>📊 مشخصات مرجع (اعمال‌شده):</b>"]
+        if lufs is not None:
+            lines.append(f"🔊 بلندی هدف: {lufs} LUFS")
+        if crest is not None:
+            lines.append(f"🎚️ داینامیک (کرست): {crest} dB")
+        if width is not None:
+            lines.append(f"🎧 پهنا (side/mid): {width}")
+        lines += [SEP, "<b>🧾 مراحل انجام‌شده:</b>"] + rep
+
+        await progress.delete()
+        await cb.message.answer("\n".join(lines), parse_mode="HTML")
+
+        # کار کامل
+        await cb.message.answer_audio(
+            FSInputFile(full, filename="final_full.mp3"),
+            title="نسخهٔ کامل", performer="Viva MixMaster")
+        # وکال جدا
+        if vocal_out:
+            await cb.message.answer_audio(
+                FSInputFile(vocal_out, filename="final_vocal.mp3"),
+                title="وکال جدا (مطابق مرجع)", performer="Viva MixMaster")
+        # بیت جدا
+        if inst_out:
+            await cb.message.answer_audio(
+                FSInputFile(inst_out, filename="final_beat.mp3"),
+                title="بیت جدا (مطابق مرجع)", performer="Viva MixMaster")
+    except Exception as e:
+        log.exception("reference processing failed")
+        try:
+            await progress.edit_text(f"❌ پردازش خطا داد:\n{e}")
+        except Exception:
+            await cb.message.answer(f"❌ پردازش خطا داد:\n{e}")
+    finally:
+        await state.clear()
 
 
 # ══════════════════ انتخاب پریست و پردازش ══════════════════

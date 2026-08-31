@@ -18,10 +18,10 @@ import yaml
 
 from config import PRESETS_FILE, TMP_DIR
 from src.audio_engine import (
-    SR, encode_mp3, load_audio, master_chain, mix_and_master,
-    save_wav, vocal_chain,
+    SR, db2lin, duck_under_vocal, encode_mp3, load_audio, master_chain,
+    mix_and_master, save_wav, to_stereo, vocal_chain,
 )
-from src.match_eq import apply_match_eq
+from src.match_eq import apply_match_eq, apply_reference_target
 
 log = logging.getLogger("pipeline")
 
@@ -199,3 +199,138 @@ def process_mode(paths, mode, preset, workdir=None, match=None):
         log.warning("MP3 encode failed: %s", e)
         out = wav
     return out, rep, time.time() - t0
+
+
+# ══════════════════ مستر مطابق مرجع (بدون پریست) ══════════════════
+
+# زنجیرهٔ وکال «خنثی» — اتوتیون + مهارِ ناخوانی‌ها + کمپرس سبک، بدون هیچ
+# رنگ‌آمیزی تُنال از پریست‌ها. رنگ صدا کاملاً از منحنی مرجع میاد.
+NEUTRAL_VOCAL = {
+    "hpf_hz": 90,
+    "working_lufs": -20,
+    "tune": {"strength": 0.55, "snap": 55, "scale": "auto", "vibrato_keep": 0.9},
+    "deplosive": {"threshold_db": -14.0, "ratio": 4.0},
+    "deess": {"threshold_db": -24.0, "ratio": 6.0, "freq": 7200},
+    "harshness": {"freq": 3500.0, "threshold_db": -22.0, "ratio": 3.5},
+    "comp1": {"threshold_db": -14, "ratio": 2.5, "attack_ms": 8, "release_ms": 120},
+    "comp2": {"threshold_db": -16, "ratio": 2.0, "attack_ms": 20, "release_ms": 300},
+    "parallel": {"threshold_db": -40, "ratio": 6, "mix": 0.2},
+    "out_lufs": -18,
+}
+
+
+def _combine(vocal, inst, sr, vocal_db=1.5, inst_db=-3.0, duck_db=3.0):
+    """میکس سادهٔ وکال + بیت (بدون زنجیرهٔ مستر پریست) — بالانس و داکینگ."""
+    vocal = to_stereo(vocal.astype(np.float32, copy=False))
+    inst = to_stereo(inst.astype(np.float32, copy=False))
+    n = max(len(vocal), len(inst))
+    if len(vocal) < n:
+        vocal = np.pad(vocal, ((0, n - len(vocal)), (0, 0)))
+    if len(inst) < n:
+        inst = np.pad(inst, ((0, n - len(inst)), (0, 0)))
+    if duck_db:
+        inst = duck_under_vocal(inst, vocal, sr, duck_db)
+    np.multiply(vocal, np.float32(db2lin(vocal_db)), out=vocal)
+    np.multiply(inst, np.float32(db2lin(inst_db)), out=inst)
+    return (vocal + inst).astype(np.float32)
+
+
+def process_reference(paths, profile, workdir=None):
+    """مستر مطابق مرجع — بدون عبور از پریست‌ها.
+
+    paths: {'vocal':..., 'inst':...} یا {'full':...}
+    خروجی: (full_path, vocal_path, inst_path, گزارش, ثانیه)
+
+    - وکال: زنجیرهٔ خنثی (اتوتیون/مهار/کمپرس سبک) → تطبیق تُنال با مرجع
+    - بیت: تطبیق تُنال با مرجع
+    - میکس: بالانس + داکینگ → تطبیق تُنال + بلندی/پهنا/سقف با مرجع
+    - همهٔ مراحل سنگین بلوکی هستن (ضد OOM)
+    """
+    import gc as _gc
+
+    workdir = Path(workdir or TMP_DIR)
+    t0 = time.time()
+    rep = ["🎯 مستر مطابق مرجع (بدون پریست)"]
+    sr = SR
+
+    has_vocal = bool(paths.get("vocal"))
+    has_inst = bool(paths.get("inst"))
+
+    # ── پردازش وکال (اگه هست) ──
+    if has_vocal:
+        vx, sr = load_audio(paths["vocal"])
+        v, vrep = vocal_chain(vx, sr, NEUTRAL_VOCAL)
+        del vx
+        _gc.collect()
+        rep += ["🎤 زنجیره وکال (خنثی):"] + vrep
+        v = apply_match_eq(v, sr, profile)
+        rep.append("🎯 تطبیق تُنال وکال با مرجع")
+    else:
+        v = None
+
+    # ── پردازش بیت (اگه هست) ──
+    if has_inst:
+        ix, sr = load_audio(paths["inst"])
+        i = apply_match_eq(ix, sr, profile)
+        del ix
+        _gc.collect()
+        rep.append("🎯 تطبیق تُنال بیت با مرجع")
+    else:
+        i = None
+
+    # ── حالت فقط آهنگ کامل ──
+    if not has_vocal and not has_inst and paths.get("full"):
+        fx, sr = load_audio(paths["full"])
+        y = apply_match_eq(fx, sr, profile)
+        del fx
+        _gc.collect()
+        rep.append("🎯 تطبیق تُنال آهنگ کامل با مرجع")
+        y = apply_reference_target(y, sr, profile)
+        rep.append("🎚️ رسوندن بلندی/پهنا/سقف به مرجع")
+        full_path = _save_out(y, sr, workdir, "ref_full")
+        return full_path, None, None, rep, time.time() - t0
+
+    # ── میکس نهایی (وکال + بیت) ──
+    y = _combine(v, i, sr)
+    rep.append("🎧 میکس: وکال + بیت (بالانس + داکینگ)")
+    del v, i
+    _gc.collect()
+    y = apply_match_eq(y, sr, profile)
+    rep.append("🎯 تطبیق تُنال میکس نهایی با مرجع")
+    y = apply_reference_target(y, sr, profile)
+    rep.append("🎚️ رسوندن بلندی/پهنا/سقف به مرجع")
+
+    # ── خروجی‌ها ──
+    full_path = _save_out(y, sr, workdir, "ref_full")
+    del y
+    _gc.collect()
+
+    vocal_out = inst_out = None
+    if has_vocal:
+        vv, _ = load_audio(paths["vocal"])
+        vv = vocal_chain(vv, sr, NEUTRAL_VOCAL)[0]
+        vv = apply_match_eq(vv, sr, profile)
+        vv = apply_reference_target(vv, sr, profile)
+        vocal_out = _save_out(vv, sr, workdir, "ref_vocal")
+        del vv
+        _gc.collect()
+    if has_inst:
+        ii, _ = load_audio(paths["inst"])
+        ii = apply_match_eq(ii, sr, profile)
+        ii = apply_reference_target(ii, sr, profile)
+        inst_out = _save_out(ii, sr, workdir, "ref_beat")
+        del ii
+        _gc.collect()
+    return full_path, vocal_out, inst_out, rep, time.time() - t0
+
+
+def _save_out(y, sr, workdir, stem):
+    wav = Path(workdir) / f"{stem}_{int(time.time())}.wav"
+    save_wav(wav, y.astype(np.float32), sr)
+    try:
+        mp3 = wav.with_suffix(".mp3")
+        encode_mp3(wav, mp3)
+        return mp3
+    except Exception as e:
+        log.warning("MP3 encode failed: %s", e)
+        return wav
