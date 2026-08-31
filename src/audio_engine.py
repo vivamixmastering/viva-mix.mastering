@@ -239,6 +239,39 @@ def air_exciter(x, sr, freq=10000.0, drive_db=2.0, mix=0.3):
     out = lp[:n] + wet[:n]
     return (out[:, 0] if single else out).astype(np.float32)
 
+
+# ══════════════════ ابریشمی‌کردن وکال (Silk) ══════════════════
+def silk(x, sr, freq=6000.0, drive_db=1.5, mix=0.4):
+    """ابریشمی‌کردن وکال — نرم و براق بدون تیزی (شبیه کنترل Silk در Neve).
+
+    باند بالای freq جدا می‌شه؛ روی اون اشباع زوج‌هارمونیکِ ملایم (شینِ نرم)
+    + فشرده‌سازی نرم می‌آد تا لبه‌های تیزِ تیس صاف و «ابریشمی» بشن — بدون
+    این‌که درخشش کم بشه. خروجی با سیگنال اصلی بلند می‌شه (میزان با mix).
+    """
+    from pedalboard import Compressor
+    single = x.ndim == 1
+    if single:
+        x = x[:, None]
+    lp = lowpass(x, sr, freq)
+    hp = x - lp
+
+    # اشباع زوج‌هارمونیک ملایم روی باند بالا (اورسمپلینگ ۴× — بدون الیاس)
+    up = _upsample_zerostuff(hp, 4)
+    g = float(db2lin(drive_db))
+    sat = np.tanh(g * up) / np.tanh(g)
+    sat = lowpass(sat, sr * 4, 19000.0)[::4]
+    n = len(hp)
+    sat = sat[:n]
+
+    # فشرده‌سازی نرم روی باند بالا — صاف‌کردن لبه‌های تیز
+    hp_sm = Compressor(threshold_db=-28.0, ratio=2.0, attack_ms=3.0,
+                       release_ms=150.0)(sat, sr)
+
+    hp_out = (1.0 - mix) * hp + mix * hp_sm
+    out = lp + hp_out
+    return (out[:, 0] if single else out).astype(np.float32)
+
+
 # ══════════════════ پهنای استریو (Mid/Side) ══════════════════
 
 def width_ms(x, amount=1.1):
@@ -550,6 +583,15 @@ def vocal_chain(x, sr, v):
             y, sr, block_s=15.0)
         rep.append(f"هوا و جزئیات ریز تیس (Air Exciter @ {ai['freq']}Hz)")
 
+    # ابریشمی‌کردن — نرم و براق کردن ناحیهٔ بالا (بدون تیزی)
+    sk = v.get("silk")
+    if sk:
+        y = block_apply(
+            lambda blk: silk(blk, sr, sk.get("freq", 6000.0),
+                             sk.get("drive_db", 1.5), sk.get("mix", 0.4)),
+            y, sr, block_s=15.0)
+        rep.append("ابریشمی‌کردن وکال (Silk — نرمی و شین بالا)")
+
     # نرم‌کردن سخت‌خوانی بعد از هوا/اشباع — لبه‌های تیز ۲.۵–۵kHz که از
     # اشباع و exciter درست می‌شن (حروف «ش/خ/ج» و حالت توییتری) اینجا مهار می‌شن
     hsh = v.get("harshness")
@@ -637,6 +679,20 @@ def master_chain(x, sr, m):
                             gain_db=hs["gain_db"])(y, sr)
         rep.append(f"درخشش کل ({hs['gain_db']:+g}dB @ {hs['freq']}Hz)")
 
+    gl = m.get("eq_gloss")
+    if gl:
+        y = PeakFilter(cutoff_frequency_hz=gl["freq"], gain_db=gl["gain_db"],
+                       q=gl.get("q", 0.9))(y, sr)
+        rep.append(f"جلا و براقیت کل ({gl['gain_db']:+g}dB @ {gl['freq']}Hz)")
+
+    sk = m.get("silk")
+    if sk:
+        y = block_apply(
+            lambda blk: silk(blk, sr, sk.get("freq", 6000.0),
+                             sk.get("drive_db", 1.5), sk.get("mix", 0.35)),
+            y, sr, block_s=15.0)
+        rep.append("ابریشمی‌کردن کل (Silk)")
+
     w = m.get("width", 1.0)
     if abs(w - 1.0) > 1e-4:
         y = width_ms(y, w)
@@ -714,6 +770,20 @@ def mix_and_master(vocal, inst, sr, mx, master):
     # ضرب درجا — کپی اضافه نسازیم
     np.multiply(vocal, np.float32(db2lin(vg)), out=vocal)
     np.multiply(inst, np.float32(db2lin(ig)), out=inst)
+
+    # ── بالانس خودکار: وکال نسبت به بیت در سطح هدف بشینه ──
+    # (مثل میکس واقعی: وکال lead_db دسی‌بل بالاتر از بستر ساز — نه خیلی
+    #  گم بشه، نه خیلی بزنه بیرون؛ مستقل از سطح ضبط هر فایل)
+    lead_db = mx.get("vocal_lead_db")
+    if lead_db is not None:
+        vrms = float(lin2db(np.sqrt(np.mean(np.square(vocal))) + 1e-12))
+        irms = float(lin2db(np.sqrt(np.mean(np.square(inst))) + 1e-12))
+        adj = float(np.clip((irms + lead_db) - vrms, -12.0, 12.0))
+        if abs(adj) > 0.1:
+            np.multiply(vocal, np.float32(db2lin(adj)), out=vocal)
+            rep.append(f"بالانس خودکار وکال (هدف {lead_db:+g}dB بالای بیت، "
+                       f"اصلاح {adj:+.1f}dB)")
+
     y = vocal + inst
     rep.append(f"بالانس: وکال {vg:+g}dB / موزیک {ig:+g}dB")
 
