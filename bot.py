@@ -36,7 +36,7 @@ async def main() -> None:
     # ── منوی تلگرام (دکمه پایین چپ کنار کادر نوشتن) ──
     commands = [
         BotCommand(command="start", description="🚀 شروع و منوی اصلی"),
-        BotCommand(command="presets", description="🎚️ مشاهده ۱۰ پریست میکس و مستر"),
+        BotCommand(command="presets", description="🎚️ مشاهده ۱۲ پریست میکس و مستر"),
         BotCommand(command="on", description="⚡️ روشن کردن ربات"),
         BotCommand(command="off", description="😴 خاموش کردن ربات"),
         BotCommand(command="test", description="🎧 تست سریع پردازش"),
