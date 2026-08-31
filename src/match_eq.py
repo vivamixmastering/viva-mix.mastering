@@ -197,12 +197,17 @@ def apply_match_eq(x, sr, profile, amount=1.0, block_s=20.0, overlap_s=2.0):
 
 
 def apply_reference_target(x, sr, profile):
-    """رسوندن بلندی + پهنا + سقف به مرجع (عملگرهای سبک روی کل سیگنال).
+    """رسوندن بلندی + پهنا + داینامیک + سقف به مرجع (عملگرهای سبک).
 
     - پهنای استریو → نسبت side/mid مرجع
-    - بلندی → LUFS مرجع (محدود به بازهٔ امن 14- تا 7-)
+    - داینامیک (کرست) → اگه خروجی داینامیک‌تر از مرجعه، کمپرس ملایم (فقط سفت‌کردن)
+    - بلندی → LUFS مرجع (محدود به بازهٔ امن 14- تا 6-)
     - سقف → از طریق normalize_lufs (سقف 1dB-)
+
+    → (سیگنال, بلندیِ نهایی LUFS)
     """
+    from pedalboard import Compressor
+
     # ── پهنای استریو ──
     ref_width = profile.get("width")
     if ref_width and x.ndim == 2 and x.shape[1] >= 2:
@@ -210,10 +215,23 @@ def apply_reference_target(x, sr, profile):
         amount = float(np.clip(ref_width / max(cur, 1e-6), 0.7, 1.4))
         x = width_ms(x, amount).astype(np.float32)
 
+    # ── داینامیک (کرست) — فقط سفت‌کردن اگه خیلی داینامیکه ──
+    ref_crest = profile.get("crest_db")
+    if ref_crest is not None:
+        cur_crest = _true_peak_db(x) - _rms_db(x)
+        if cur_crest > ref_crest + 0.5:
+            # کمپرس ملایم پیک‌ها برای کم کردن کرست به سمت مرجع
+            x = np.asarray(
+                Compressor(threshold_db=-6.0, ratio=2.0,
+                           attack_ms=5.0, release_ms=120.0)(x, sr),
+                dtype=np.float32)
+
     # ── بلندی ──
     ref_lufs = profile.get("lufs")
+    final_lufs = None
     if ref_lufs is not None and ref_lufs > -70.0:
-        target = float(np.clip(ref_lufs, -14.0, -7.0))
+        target = float(np.clip(ref_lufs, -14.0, -6.0))
         x = normalize_lufs(x, sr, target=target, ceiling_db=-1.0)
+        final_lufs = integrated_lufs(x, sr)
 
-    return x.astype(np.float32)
+    return x.astype(np.float32), final_lufs

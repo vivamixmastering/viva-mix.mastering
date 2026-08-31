@@ -22,6 +22,7 @@ from src.audio_engine import (
     mix_and_master, save_wav, to_stereo, vocal_chain,
 )
 from src.match_eq import apply_match_eq, apply_reference_target
+from src.reference_chain import derive_master_cfg, derive_vocal_cfg
 
 log = logging.getLogger("pipeline")
 
@@ -137,8 +138,9 @@ def separate_stems(path, workdir):
 
 def process_mode(paths, mode, preset, workdir=None, match=None):
     """paths: {'vocal':..., 'inst':..., 'full':...} بر اساس حالت
-    match: پروفایل تُنال مرجع (dict از match_eq.analyze) — اگه داده بشه،
-           تُنالِ عنصر اصلی هر حالت به منحنی مرجع نزدیک می‌شه (Match EQ).
+    match: پروفایل مرجع (dict از match_eq.analyze) — اگه داده بشه، ۷ مقدار
+           مرجع (تُنال + بلندی + پهنا + داینامیک) روی خروجی پریست «سوار» می‌شن
+           بدون دست‌زدن به تنظیمات خود پریست.
     خروجی: (مسیر فایل نهایی, لیست گزارش, ثانیه زمان پردازش)
     """
     workdir = Path(workdir or TMP_DIR)
@@ -148,19 +150,11 @@ def process_mode(paths, mode, preset, workdir=None, match=None):
     if mode == "vocal":
         x, sr = load_audio(paths["vocal"])
         y, vrep = vocal_chain(x, sr, preset.get("vocal", {}))
-        if match:
-            y = apply_match_eq(y, sr, match)
-            vrep = vrep + ["🎯 تطبیق تُنال با مرجع (Match EQ)"]
         rep = [header, "🎤 زنجیره وکال:"] + vrep
     elif mode == "full":
         x, sr = load_audio(paths["full"])
-        if match:
-            x = apply_match_eq(x, sr, match)
         y, mrep = master_chain(x, sr, preset.get("master", {}))
-        rep = [header, "🎵 زنجیره مسترینگ:"]
-        if match:
-            rep.append("🎯 تطبیق تُنال با مرجع (Match EQ)")
-        rep += mrep
+        rep = [header, "🎵 زنجیره مسترینگ:"] + mrep
     elif mode in ("two", "smart", "two_bleed"):
         if mode == "smart" and "vocal" not in paths:
             # اگه فقط آهنگ کامل داده شده، خودمان جداسازی می‌کنیم
@@ -168,9 +162,6 @@ def process_mode(paths, mode, preset, workdir=None, match=None):
             paths = {"vocal": str(vp), "inst": str(ip)}
         vx, sr = load_audio(paths["vocal"])
         ix, _ = load_audio(paths["inst"])
-        if match:
-            # بیت رو به منحنی مرجع نزدیک می‌کنیم تا وکال «سوار» همون بافت بشه
-            ix = apply_match_eq(ix, sr, match)
         vcfg = dict(preset.get("vocal", {}))
         if mode in ("two_bleed", "smart"):
             # وکال جداسازی‌شده (ابزار کاربر یا Demucs) همیشه کمی نشت موزیک
@@ -182,12 +173,15 @@ def process_mode(paths, mode, preset, workdir=None, match=None):
         _gc.collect()
         y, mixrep = mix_and_master(v, ix, sr, preset.get("mix", {}),
                                    preset.get("master", {}))
-        rep = ([header, "🎤 زنجیره وکال:"] + vrep
-               + ["🎧 میکس و مستر نهایی:"]
-               + (["🎯 تطبیق تُنال با مرجع (Match EQ)"] if match else [])
-               + mixrep)
+        rep = [header, "🎤 زنجیره وکال:"] + vrep + ["🎧 میکس و مستر نهایی:"] + mixrep
     else:
         raise ValueError(f"حالت ناشناخته: {mode}")
+
+    # ── سوار کردن ۷ مقدار مرجع روی خروجی پریست (بدون تغییر پریست) ──
+    if match:
+        y = apply_match_eq(y, sr, match)
+        y, _lufs = apply_reference_target(y, sr, match)
+        rep.append("🎯 ترکیب ۷ تنظیمات مرجع (تُنال/بلندی/پهنا/داینامیک)")
 
     wav = workdir / f"out_{int(time.time())}.wav"
     save_wav(wav, y, sr)
@@ -203,24 +197,8 @@ def process_mode(paths, mode, preset, workdir=None, match=None):
 
 # ══════════════════ مستر مطابق مرجع (بدون پریست) ══════════════════
 
-# زنجیرهٔ وکال «خنثی» — اتوتیون + مهارِ ناخوانی‌ها + کمپرس سبک، بدون هیچ
-# رنگ‌آمیزی تُنال از پریست‌ها. رنگ صدا کاملاً از منحنی مرجع میاد.
-NEUTRAL_VOCAL = {
-    "hpf_hz": 90,
-    "working_lufs": -20,
-    "tune": {"strength": 0.55, "snap": 55, "scale": "auto", "vibrato_keep": 0.9},
-    "deplosive": {"threshold_db": -14.0, "ratio": 4.0},
-    "deess": {"threshold_db": -24.0, "ratio": 6.0, "freq": 7200},
-    "harshness": {"freq": 3500.0, "threshold_db": -22.0, "ratio": 3.5},
-    "comp1": {"threshold_db": -14, "ratio": 2.5, "attack_ms": 8, "release_ms": 120},
-    "comp2": {"threshold_db": -16, "ratio": 2.0, "attack_ms": 20, "release_ms": 300},
-    "parallel": {"threshold_db": -40, "ratio": 6, "mix": 0.2},
-    "out_lufs": -18,
-}
-
-
 def _combine(vocal, inst, sr, vocal_db=1.5, inst_db=-3.0, duck_db=3.0):
-    """میکس سادهٔ وکال + بیت (بدون زنجیرهٔ مستر پریست) — بالانس و داکینگ."""
+    """میکس سادهٔ وکال + بیت — بالانس و داکینگ."""
     vocal = to_stereo(vocal.astype(np.float32, copy=False))
     inst = to_stereo(inst.astype(np.float32, copy=False))
     n = max(len(vocal), len(inst))
@@ -236,15 +214,15 @@ def _combine(vocal, inst, sr, vocal_db=1.5, inst_db=-3.0, duck_db=3.0):
 
 
 def process_reference(paths, profile, workdir=None):
-    """مستر مطابق مرجع — بدون عبور از پریست‌ها.
+    """مستر مطابق مرجع — بدون عبور از پریست‌ها، با زنجیرهٔ کامل مشتق‌شده.
+
+    همهٔ پلاگین‌ها (اتوتیون/ملوداین، کمپرسورها، EQ، دی‌اسر، گرماساز، هوا،
+    ریورب، اکو، لیمیتر) بر اساس ۷ مقدار شنیداری مرجع از نو ساخته می‌شن
+    (derive_vocal_cfg / derive_master_cfg)، بعد تُنال و بلندی/پهنا/داینامیک
+    دقیقاً به مرجع می‌رسن.
 
     paths: {'vocal':..., 'inst':...} یا {'full':...}
     خروجی: (full_path, vocal_path, inst_path, گزارش, ثانیه)
-
-    - وکال: زنجیرهٔ خنثی (اتوتیون/مهار/کمپرس سبک) → تطبیق تُنال با مرجع
-    - بیت: تطبیق تُنال با مرجع
-    - میکس: بالانس + داکینگ → تطبیق تُنال + بلندی/پهنا/سقف با مرجع
-    - همهٔ مراحل سنگین بلوکی هستن (ضد OOM)
     """
     import gc as _gc
 
@@ -253,16 +231,19 @@ def process_reference(paths, profile, workdir=None):
     rep = ["🎯 مستر مطابق مرجع (بدون پریست)"]
     sr = SR
 
+    vocal_cfg = derive_vocal_cfg(profile)
+    master_cfg = derive_master_cfg(profile)
+
     has_vocal = bool(paths.get("vocal"))
     has_inst = bool(paths.get("inst"))
 
-    # ── پردازش وکال (اگه هست) ──
+    # ── پردازش وکال (اگه هست) — زنجیرهٔ کامل مشتق از مرجع ──
     if has_vocal:
         vx, sr = load_audio(paths["vocal"])
-        v, vrep = vocal_chain(vx, sr, NEUTRAL_VOCAL)
+        v, vrep = vocal_chain(vx, sr, vocal_cfg)
         del vx
         _gc.collect()
-        rep += ["🎤 زنجیره وکال (خنثی):"] + vrep
+        rep += ["🎤 زنجیره وکال (بازسازی‌شده از مرجع):"] + vrep
         v = apply_match_eq(v, sr, profile)
         rep.append("🎯 تطبیق تُنال وکال با مرجع")
     else:
@@ -278,27 +259,31 @@ def process_reference(paths, profile, workdir=None):
     else:
         i = None
 
-    # ── حالت فقط آهنگ کامل ──
+    # ── حالت فقط آهنگ کامل: زنجیرهٔ کامل مستر مشتق از مرجع ──
     if not has_vocal and not has_inst and paths.get("full"):
         fx, sr = load_audio(paths["full"])
-        y = apply_match_eq(fx, sr, profile)
+        y, mrep = master_chain(fx, sr, master_cfg)
         del fx
         _gc.collect()
-        rep.append("🎯 تطبیق تُنال آهنگ کامل با مرجع")
-        y = apply_reference_target(y, sr, profile)
-        rep.append("🎚️ رسوندن بلندی/پهنا/سقف به مرجع")
+        rep += ["🎵 زنجیره مستر (بازسازی‌شده از مرجع):"] + mrep
+        y = apply_match_eq(y, sr, profile)
+        rep.append("🎯 تطبیق تُنال نهایی با مرجع")
+        y, _lufs = apply_reference_target(y, sr, profile)
+        rep.append("🎚️ رسوندن بلندی/پهنا/داینامیک به مرجع")
         full_path = _save_out(y, sr, workdir, "ref_full")
         return full_path, None, None, rep, time.time() - t0
 
-    # ── میکس نهایی (وکال + بیت) ──
+    # ── میکس نهایی (وکال + بیت) → زنجیرهٔ مستر مشتق از مرجع ──
     y = _combine(v, i, sr)
     rep.append("🎧 میکس: وکال + بیت (بالانس + داکینگ)")
     del v, i
     _gc.collect()
+    y, mrep = master_chain(y, sr, master_cfg)
+    rep += ["🎵 زنجیره مستر (بازسازی‌شده از مرجع):"] + mrep
     y = apply_match_eq(y, sr, profile)
-    rep.append("🎯 تطبیق تُنال میکس نهایی با مرجع")
-    y = apply_reference_target(y, sr, profile)
-    rep.append("🎚️ رسوندن بلندی/پهنا/سقف به مرجع")
+    rep.append("🎯 تطبیق تُنال نهایی با مرجع")
+    y, _lufs = apply_reference_target(y, sr, profile)
+    rep.append("🎚️ رسوندن بلندی/پهنا/داینامیک به مرجع")
 
     # ── خروجی‌ها ──
     full_path = _save_out(y, sr, workdir, "ref_full")
@@ -308,16 +293,16 @@ def process_reference(paths, profile, workdir=None):
     vocal_out = inst_out = None
     if has_vocal:
         vv, _ = load_audio(paths["vocal"])
-        vv = vocal_chain(vv, sr, NEUTRAL_VOCAL)[0]
+        vv = vocal_chain(vv, sr, vocal_cfg)[0]
         vv = apply_match_eq(vv, sr, profile)
-        vv = apply_reference_target(vv, sr, profile)
+        vv, _lufs = apply_reference_target(vv, sr, profile)
         vocal_out = _save_out(vv, sr, workdir, "ref_vocal")
         del vv
         _gc.collect()
     if has_inst:
         ii, _ = load_audio(paths["inst"])
         ii = apply_match_eq(ii, sr, profile)
-        ii = apply_reference_target(ii, sr, profile)
+        ii, _lufs = apply_reference_target(ii, sr, profile)
         inst_out = _save_out(ii, sr, workdir, "ref_beat")
         del ii
         _gc.collect()
