@@ -454,14 +454,29 @@ def stereo_repair(x, sr):
 
 def _double_layer(core, sr, delay_ms=18.0, depth_ms=6.0, rate_hz=0.6):
     """بک‌ویس (دابل‌ترک): کپی با تأخیر مدوله‌شده (کورس‌مانند) → دی‌تیون طبیعی
-    و حرکت، بدون کلیک/الیاس و بدون فریزِ پایان."""
-    n = len(core)
-    t = np.arange(n, dtype=np.float64) / sr
-    d = (delay_ms / 1000.0 + (depth_ms / 1000.0) * np.sin(2.0 * np.pi * rate_hz * t)) * sr
-    idx = np.arange(n, dtype=np.float64) - d
-    idx = np.clip(idx, 0.0, float(n - 1))
-    return np.interp(idx, np.arange(n, dtype=np.float64),
-                     core.astype(np.float64)).astype(np.float32)
+    و حرکت، بدون کلیک/الیاس و بدون فریزِ پایان.
+
+    پیاده‌سازی کم‌مصرف: float32 + تاخیر کسری با درون‌یابی خطی (دو شیفت
+    برداری)، بدون آرایه‌های float64 بزرگ → روی فایل‌های بلند OOM نمی‌شه.
+    """
+    x = core.astype(np.float32)
+    n = len(x)
+    # مدولاسیون تاخیر به‌صورت chunk (هر 0.25s یک مقدار) → کم‌مصرف
+    chunk = max(1, int(sr * 0.25))
+    nseg = (n + chunk - 1) // chunk
+    seg_t = (np.arange(nseg, dtype=np.float32) * chunk + chunk * 0.5) / sr
+    seg_d = (delay_ms / 1000.0 + (depth_ms / 1000.0)
+             * np.sin(2.0 * np.pi * rate_hz * seg_t)).astype(np.float32) * sr
+    seg_d = np.clip(seg_d, 2.0, float(n - 2))
+    # باز کردن به ازای هر نمونه (کم‌مصرف — float32)
+    d = np.repeat(seg_d, chunk)[:n]
+    d0 = np.floor(d).astype(np.int32)
+    frac = (d - d0).astype(np.float32)
+    d0 = np.clip(d0, 1, n - 2)
+    i0 = np.arange(n, dtype=np.int32)
+    a = x[np.clip(i0 - d0, 0, n - 1)]
+    b = x[np.clip(i0 - d0 - 1, 0, n - 1)]
+    return ((1.0 - frac) * a + frac * b).astype(np.float32)
 
 
 def add_double_layer(y, sr, cfg):
