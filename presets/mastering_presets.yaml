@@ -197,24 +197,25 @@ presets:
   vocal:
     hpf_hz: 95
     working_lufs: -20
-    tune: {strength: 0.6, snap: 50, scale: auto, vibrato_keep: 0.9}
+    tune: {strength: 0.55, snap: 45, scale: auto, vibrato_keep: 0.92}
     leveler: {target_db: -19, max_db: 2.5}
     comp1: {threshold_db: -13, ratio: 2.5, attack_ms: 6, release_ms: 85}
     comp2: {threshold_db: -15, ratio: 2.0, attack_ms: 18, release_ms: 320}
     parallel: {threshold_db: -38, ratio: 6, mix: 0.18}
-    eq_low_shelf: {freq: 115, gain_db: 2.5}
-    eq_dip: {freq: 1800, gain_db: -2.2, q: 1.6}
-    eq_presence: {freq: 3000, gain_db: 3.0, q: 0.9}
+    eq_low_shelf: {freq: 120, gain_db: 3.0}
+    eq_dip: {freq: 1800, gain_db: -3.0, q: 1.6}
+    eq_presence: {freq: 2800, gain_db: 2.0, q: 0.9}
     eq_gloss: {freq: 9500, gain_db: 3.0, q: 0.9}
     eq_air_shelf: {freq: 13500, gain_db: 3.5}
     deess: {threshold_db: -24.0, ratio: 6.0, freq: 7300}
-    warmth: {drive_db: 3.0, mix: 0.3}
+    warmth: {drive_db: 3.5, mix: 0.35}
     air: {freq: 12000, drive_db: 2.5, mix: 0.38}
-    delay: {time_s: 0.21, feedback: 0.25, mix: 0.08}
-    reverb: {room: 0.35, damping: 0.5, wet: 0.2}
-    out_lufs: -14
+    delay: {time_s: 0.21, feedback: 0.32, mix: 0.12}
+    reverb: {room: 0.4, damping: 0.45, wet: 0.24}
+    out_lufs: -12
     deplosive: {threshold_db: -14.0, ratio: 4.0}
     harshness: {freq: 3500.0, threshold_db: -22.0, ratio: 3.5}
+    eq_warm: {freq: 240, gain_db: 3.0, q: 0.8}
   mix: {vocal_gain_db: 2.0, inst_gain_db: -3.0, duck_db: 3.5}
   master:
     working_lufs: -18

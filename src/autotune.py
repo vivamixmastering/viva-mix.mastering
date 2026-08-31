@@ -289,6 +289,21 @@ def _tune_segment(x_mono, sr, strength, snap_cents, f0_floor, f0_ceil,
     # ⚠️ مهم: frame_period حتماً باید با تحلیل یکی باشه، وگرنه طول و سرعت پخش خراب می‌شه
     y = pw.synthesize(new_f0.astype(np.float64), sp, ap, work_sr,
                       frame_period=frame_period).astype(np.float64)
+
+    # ── حفظ صامت‌ها از صدای اصلی (ضد «جویده شدن» و صدای «پشت تلفنی») ──
+    # WORLD فقط بخش واک‌دار (حروف صدادار) رو درست بازسازی می‌کنه؛ فریم‌های
+    # بی‌واک (صامت‌های س/ش/پ/ت/ک/د...) f0=0 دارن و سنتزشون خالی/مصنوعیه →
+    # همون صدای جویده/رباتی. پس فریم‌های بی‌واک رو از سیگنال اصلی برمی‌گردونیم
+    # (با کراس‌فید نرم که کلیک نده) و فقط واکه‌ها رو اصلاح‌کوک می‌کنیم.
+    hop_ws = max(1, int(work_sr * frame_period / 1000.0))
+    n_ws = min(len(x), len(y))
+    env = np.repeat(voiced.astype(np.float64), hop_ws)[:n_ws]
+    if len(env) < n_ws:
+        env = np.pad(env, (0, n_ws - len(env)))
+    k = max(1, int(0.03 * work_sr))
+    env = np.convolve(env, np.ones(k) / k, mode="same")
+    y = y[:n_ws] * env + x[:n_ws] * (1.0 - env)
+
     y = resample(y, work_sr, sr).astype(np.float32)
 
     n = min(len(x_mono), len(y))

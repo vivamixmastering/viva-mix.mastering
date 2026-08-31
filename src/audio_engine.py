@@ -503,6 +503,11 @@ def vocal_chain(x, sr, v):
         y = LowShelfFilter(cutoff_frequency_hz=ls["freq"],
                            gain_db=ls["gain_db"], q=0.7)(y, sr)
         rep.append(f"گرمی بم (شلف {ls['gain_db']:+g}dB @ {ls['freq']}Hz)")
+    wm = v.get("eq_warm")
+    if wm:
+        y = PeakFilter(cutoff_frequency_hz=wm["freq"], gain_db=wm["gain_db"],
+                       q=wm.get("q", 0.8))(y, sr)
+        rep.append(f"گرمای بدنه و سینه ({wm['gain_db']:+g}dB @ {wm['freq']}Hz)")
     dip = v.get("eq_dip")
     if dip:
         y = PeakFilter(cutoff_frequency_hz=dip["freq"], gain_db=dip["gain_db"],
