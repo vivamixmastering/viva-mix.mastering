@@ -226,16 +226,16 @@ presets:
       threshold_db: -14
       ratio: 3.0
       attack_ms: 5
-      release_ms: 100
+      release_ms: 90
     comp2:
       threshold_db: -16
       ratio: 2.0
       attack_ms: 20
       release_ms: 320
     parallel:
-      threshold_db: -34
+      threshold_db: -36
       ratio: 8
-      mix: 0.26
+      mix: 0.3
     eq_low_shelf:
       freq: 110
       gain_db: 3.0
@@ -245,32 +245,32 @@ presets:
       q: 1.6
     eq_presence:
       freq: 2800
-      gain_db: 3.0
+      gain_db: 3.5
       q: 0.9
     eq_gloss:
       freq: 9500
-      gain_db: 2.5
+      gain_db: 3.5
       q: 0.9
     eq_air_shelf:
       freq: 13500
-      gain_db: 2.5
+      gain_db: 4.0
     deess:
       threshold_db: -24.0
       ratio: 6.0
       freq: 7300
     warmth:
-      drive_db: 4.0
-      mix: 0.45
+      drive_db: 4.5
+      mix: 0.5
     air:
       freq: 12000
-      drive_db: 2.5
-      mix: 0.38
+      drive_db: 3.5
+      mix: 0.45
     delay:
-      time_s: 0.25
-      feedback: 0.32
-      mix: 0.13
+      time_s: 0.22
+      feedback: 0.34
+      mix: 0.16
     reverb:
-      room: 0.5
+      room: 0.45
       damping: 0.5
       wet: 0.3
     out_lufs: -12
@@ -283,9 +283,9 @@ presets:
       ratio: 3.5
     eq_warm:
       freq: 240
-      gain_db: 3.0
+      gain_db: 3.5
       q: 0.8
-    gain_db: 3.0
+    gain_db: 3.5
   mix:
     vocal_gain_db: 2.0
     inst_gain_db: -2.5
@@ -531,7 +531,7 @@ presets:
       threshold_db: -14
       ratio: 3.0
       attack_ms: 5
-      release_ms: 85
+      release_ms: 90
     comp2:
       threshold_db: -16
       ratio: 2.2
@@ -550,7 +550,7 @@ presets:
       q: 1.6
     eq_presence:
       freq: 3200
-      gain_db: 4.0
+      gain_db: 4.5
       q: 0.9
     eq_gloss:
       freq: 9500
@@ -564,20 +564,20 @@ presets:
       ratio: 6.0
       freq: 7300
     warmth:
-      drive_db: 4.0
-      mix: 0.45
+      drive_db: 4.5
+      mix: 0.5
     air:
       freq: 12000
       drive_db: 3.5
       mix: 0.45
     delay:
-      time_s: 0.21
+      time_s: 0.22
       feedback: 0.34
       mix: 0.16
     reverb:
-      room: 0.4
+      room: 0.45
       damping: 0.5
-      wet: 0.28
+      wet: 0.3
     out_lufs: -12
     deplosive:
       threshold_db: -14.0
@@ -588,9 +588,9 @@ presets:
       ratio: 3.5
     eq_warm:
       freq: 240
-      gain_db: 3.0
+      gain_db: 3.5
       q: 0.8
-    gain_db: 3.5
+    gain_db: 4.0
   mix:
     vocal_gain_db: 2.5
     inst_gain_db: -3.0
@@ -636,9 +636,9 @@ presets:
       target_db: -19
       max_db: 2.5
     comp1:
-      threshold_db: -13
-      ratio: 2.8
-      attack_ms: 6
+      threshold_db: -14
+      ratio: 3.0
+      attack_ms: 5
       release_ms: 90
     comp2:
       threshold_db: -15
@@ -648,7 +648,7 @@ presets:
     parallel:
       threshold_db: -36
       ratio: 8
-      mix: 0.28
+      mix: 0.3
     eq_low_shelf:
       freq: 120
       gain_db: 3.0
@@ -679,12 +679,12 @@ presets:
       drive_db: 3.5
       mix: 0.45
     delay:
-      time_s: 0.21
+      time_s: 0.22
       feedback: 0.34
       mix: 0.16
     reverb:
-      room: 0.4
-      damping: 0.45
+      room: 0.45
+      damping: 0.5
       wet: 0.3
     out_lufs: -12
     deplosive:
@@ -698,7 +698,7 @@ presets:
       freq: 240
       gain_db: 3.5
       q: 0.8
-    gain_db: 4.0
+    gain_db: 4.5
   mix:
     vocal_gain_db: 2.5
     inst_gain_db: -3.0
@@ -736,17 +736,17 @@ presets:
     hpf_hz: 95
     working_lufs: -20
     tune:
-      strength: 0.4
-      snap: 32
+      strength: 0.05
+      snap: 30
       scale: auto
-      vibrato_keep: 0.95
+      vibrato_keep: 0.96
     leveler:
       target_db: -19
       max_db: 2.5
     comp1:
-      threshold_db: -13
-      ratio: 2.8
-      attack_ms: 6
+      threshold_db: -14
+      ratio: 3.0
+      attack_ms: 5
       release_ms: 90
     comp2:
       threshold_db: -15
@@ -756,7 +756,7 @@ presets:
     parallel:
       threshold_db: -36
       ratio: 8
-      mix: 0.26
+      mix: 0.3
     eq_low_shelf:
       freq: 120
       gain_db: 2.0
@@ -766,34 +766,34 @@ presets:
       q: 1.6
     eq_presence:
       freq: 3200
-      gain_db: 3.0
+      gain_db: 4.5
       q: 0.9
     eq_gloss:
       freq: 9500
-      gain_db: 2.5
+      gain_db: 3.5
       q: 0.9
     eq_air_shelf:
       freq: 13500
-      gain_db: 3.0
+      gain_db: 4.0
     deess:
       threshold_db: -24.0
       ratio: 6.0
       freq: 7300
     warmth:
-      drive_db: 3.0
-      mix: 0.35
+      drive_db: 4.5
+      mix: 0.5
     air:
       freq: 12000
-      drive_db: 2.5
-      mix: 0.38
+      drive_db: 3.5
+      mix: 0.45
     delay:
-      time_s: 0.21
-      feedback: 0.32
-      mix: 0.12
+      time_s: 0.22
+      feedback: 0.34
+      mix: 0.16
     reverb:
-      room: 0.4
-      damping: 0.45
-      wet: 0.22
+      room: 0.45
+      damping: 0.5
+      wet: 0.3
     out_lufs: -14
     deplosive:
       threshold_db: -14.0
@@ -804,9 +804,9 @@ presets:
       ratio: 3.5
     eq_warm:
       freq: 240
-      gain_db: 2.0
+      gain_db: 3.5
       q: 0.8
-    gain_db: 2.0
+    gain_db: 3.5
   mix:
     vocal_gain_db: 1.5
     inst_gain_db: -3.0
