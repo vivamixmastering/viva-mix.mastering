@@ -305,7 +305,10 @@ def _tune_segment(x_mono, sr, strength, snap_cents, f0_floor, f0_ceil,
     if len(xx) < seg_len:
         xx = np.pad(xx, (0, seg_len - len(xx)))
     frame_peak = xx.reshape(n_frames, hop_ws).max(axis=1)
-    thr = np.percentile(frame_peak, 80) * 0.15 + 1e-9
+    # هموارسازی پوش فریم‌ها در زمان — تا واکهٔ لرزان (ویبراتو) به‌اشتباه
+    # «صامت» نشه و پوش بالا/پایین نپره (عامل «تیک تیک» وسط وکال)
+    frame_peak = np.convolve(frame_peak, np.ones(5) / 5, mode="same")
+    thr = np.percentile(frame_peak, 85) * 0.12 + 1e-9
     quiet = frame_peak < thr
 
     # preserve = 1 → از سیگنال اصلی؛ 0 → از سنتز تیون‌شده
@@ -313,7 +316,7 @@ def _tune_segment(x_mono, sr, strength, snap_cents, f0_floor, f0_ceil,
     env = np.repeat(preserve.astype(np.float64), hop_ws)[:n_ws]
     if len(env) < n_ws:
         env = np.pad(env, (0, n_ws - len(env)))
-    k = max(1, int(0.010 * work_sr))   # ۱۰ میلی‌ثانیه — صامت‌های کوتاه کامل حفظ شن
+    k = max(1, int(0.05 * work_sr))   # ۵۰ میلی‌ثانیه — بدون تیک/فلاتر
     env = np.convolve(env, np.ones(k) / k, mode="same")
     y = y[:n_ws] * (1.0 - env) + x[:n_ws] * env
 

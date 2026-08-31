@@ -576,6 +576,14 @@ def vocal_chain(x, sr, v):
     target = v.get("out_lufs", -18.0)
     y = normalize_lufs(y, sr, target=target, ceiling_db=-3.0)
     rep.append(f"نرمال‌سازی وکال → {target} LUFS")
+    # گین صریح خروجی (کنترل قدرت/بلندی مستقیم، جدا از نرمال‌سازی LUFS)
+    g = v.get("gain_db")
+    if g:
+        y = y * np.float32(db2lin(g))
+        pk = float(np.max(np.abs(y)))
+        if pk > 0.98:                      # گارد پیک — بدون دیستورت
+            y = y * np.float32(0.98 / pk)
+        rep.append(f"گین خروجی +{g:g}dB (قدرت بیشتر)")
     return y.astype(np.float32), rep
 
 # ══════════════════ زنجیره مستر ══════════════════
