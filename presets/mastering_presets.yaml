@@ -203,8 +203,8 @@ presets:
     comp2: {threshold_db: -15, ratio: 2.2, attack_ms: 18, release_ms: 300}
     parallel: {threshold_db: -36, ratio: 8, mix: 0.28}
     eq_low_shelf: {freq: 120, gain_db: 4.0}
-    eq_dip: {freq: 1800, gain_db: -3.0, q: 1.6}
-    eq_presence: {freq: 2800, gain_db: 2.0, q: 0.9}
+    eq_dip: {freq: 1800, gain_db: 0.0, q: 1.6}
+    eq_presence: {freq: 2800, gain_db: 0.0, q: 0.9}
     eq_gloss: {freq: 9500, gain_db: 3.0, q: 0.9}
     eq_air_shelf: {freq: 13500, gain_db: 3.5}
     deess: {threshold_db: -24.0, ratio: 6.0, freq: 7300}
@@ -231,6 +231,7 @@ presets:
     lufs: -9.5
     ceiling: -1.0
     bus_parallel: {threshold_db: -30.0, ratio: 2.2, mix: 0.24}
+  ref_target: {warmth_db: 13.2, mid_db: 0.0, brightness_db: -14.4, tilt_db: -27.6, lufs: -6.9, crest_db: 12.0, width: 0.441}
 - id: vintage_tape
   name: 📼 وینتج تیپ
   desc: صدای نواری گرم دهه ۷۰ — اشباع زیاد و جلای گرمِ محدود (کاراکتر تیپ حفظ می‌شه)

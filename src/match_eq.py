@@ -86,6 +86,51 @@ def _width_ratio(x):
     return sm / mm
 
 
+def _widen_to_target(x, sr, target):
+    """رسوندن واقعی پهنای استریو به هدف (side/mid = target).
+
+    اگه سیگنال باریک‌تر از هدف باشه (مثل وکال مونو)، از یک سیگنال
+    decorrelation‌شده (اختلاف تأخیر هاس ~12ms) برای «ساخت» پهنا استفاده می‌کنه —
+    این پهنا واقعیه و با side/mid قابل اندازه‌گیریه، نه صرفاً برچسب.
+    اگه عریض‌تر از هدف باشه، فقط پهلو رو کم می‌کنه (بدون دست‌کاری تُنال).
+    """
+    if x.ndim != 2 or x.shape[1] < 2:
+        return x
+    cur = _width_ratio(x)
+    if cur >= target and cur > 0.0:
+        # فقط باریک‌کردن — مقیاس پهلو
+        amt = float(np.clip(target / cur, 0.05, 1.0))
+        return width_ms(x, amt)
+
+    mid = (x[:, 0] + x[:, 1]) / 2.0
+    side = (x[:, 0] - x[:, 1]) / 2.0
+
+    # سیگنال decorrelation‌شده از mid (تأخیر هاس — بدون تغییر طیف دامنه‌ای)
+    d = max(1, int(round(0.012 * sr)))
+    dm = np.empty_like(mid)
+    dm[:d] = mid[:d]
+    dm[d:] = mid[:-d]
+    decor = (mid - dm).astype(np.float32)
+
+    m_rms = float(np.sqrt(np.mean(np.square(mid))) + 1e-12)
+    d_rms = float(np.sqrt(np.mean(np.square(decor))) + 1e-12)
+    s_rms = float(np.sqrt(np.mean(np.square(side))) + 1e-12)
+    if d_rms > 1e-9:
+        decor = decor * (m_rms / d_rms)  # هم‌انرژی با mid
+
+    # c*decor به‌طوری‌که rms(side+c*decor)/rms(mid) = target
+    # (decor ⊥ side و ⊥ mid تقریباً، پس جمع انرژی‌ها برقراره)
+    c = float(np.sqrt(max(0.0, target * target - (s_rms / m_rms) ** 2)))
+    side_new = side + decor * c
+
+    s_new = float(np.sqrt(np.mean(np.square(side_new))) + 1e-12)
+    if s_new > 1e-9:
+        side_new = side_new * (target * m_rms / s_new)
+
+    out = np.stack([mid + side_new, mid - side_new], axis=1)
+    return out.astype(np.float32)
+
+
 def analyze(path, sr=SR):
     """آنالیز کامل آهنگ مرجع.
 
@@ -130,25 +175,27 @@ def _describe(db):
     }
 
 
-def _gain_curve(x, sr, profile, amount=DEFAULT_AMOUNT):
+def _gain_curve(x, sr, profile, amount=DEFAULT_AMOUNT,
+                max_boost=MAX_BOOST_DB, max_cut=MAX_CUT_DB):
     """منحنی گین (dB) برای رسوندن x به پروفایل مرجع — ملایم و هموار."""
     f, db = _spectrum_db(x, sr)
     db = _on_grid(f, db)
     db = _normalize_shape(db)
     db = _smooth(db)
     ref = np.asarray(profile["db"], dtype=np.float64)
-    gain = np.clip((ref - db) * float(amount), MAX_CUT_DB, MAX_BOOST_DB)
+    gain = np.clip((ref - db) * float(amount), float(max_cut), float(max_boost))
     # هموارسازی سنگین‌تر → بدون تغییرات ناگهانی/رینگ
     return _smooth(gain, 11)
 
 
-def apply_match_eq(x, sr, profile, amount=DEFAULT_AMOUNT, block_s=20.0, overlap_s=2.0):
+def apply_match_eq(x, sr, profile, amount=DEFAULT_AMOUNT, block_s=20.0,
+                   overlap_s=2.0, max_boost=MAX_BOOST_DB, max_cut=MAX_CUT_DB):
     """اعمال Match EQ (تُنال) — بلوکی با هم‌پوشانی تا رم مستقل از طول بمونه.
 
     منحنی گین یک‌بار از کل سیگنال (welch) حساب می‌شه، بعد اعمالِ آن به‌صورت
     STFT بلوکی با crossfade هانینگ انجام می‌شه → بدون OOM روی فایل‌های بلند.
     """
-    gain_db = _gain_curve(x, sr, profile, amount)
+    gain_db = _gain_curve(x, sr, profile, amount, max_boost, max_cut)
 
     mono = x.ndim == 1
     if mono:
@@ -213,22 +260,22 @@ def apply_reference_target(x, sr, profile):
     """
     from pedalboard import Compressor
 
-    # ── پهنای استریو ──
+    # ── پهنای استریو (واقعی — اگه لازم باشه پهنا ساخته می‌شه) ──
     ref_width = profile.get("width")
-    if ref_width and x.ndim == 2 and x.shape[1] >= 2:
-        cur = _width_ratio(x)
-        amount = float(np.clip(ref_width / max(cur, 1e-6), 0.7, 1.4))
-        x = width_ms(x, amount).astype(np.float32)
+    if ref_width and ref_width > 0.0:
+        x = _widen_to_target(x, sr, float(ref_width)).astype(np.float32)
 
-    # ── داینامیک (کرست) — فقط سفت‌کردن اگه خیلی داینامیکه ──
+    # ── داینامیک (کرست) — رسوندن واقعی کرست به هدف ──
     ref_crest = profile.get("crest_db")
-    if ref_crest is not None:
-        cur_crest = _true_peak_db(x) - _rms_db(x)
-        if cur_crest > ref_crest + 0.5:
-            # کمپرس ملایم پیک‌ها برای کم کردن کرست به سمت مرجع
+    if ref_crest is not None and ref_crest > 0.0:
+        for _ in range(4):
+            cur_crest = _true_peak_db(x) - _rms_db(x)
+            if cur_crest <= ref_crest + 0.5:
+                break
+            # کمپرس ملایم پیک‌ها تا کرست به هدف برسه (بدون له‌کردن کلی)
             x = np.asarray(
-                Compressor(threshold_db=-6.0, ratio=2.0,
-                           attack_ms=5.0, release_ms=120.0)(x, sr),
+                Compressor(threshold_db=-6.0, ratio=3.0,
+                           attack_ms=5.0, release_ms=150.0)(x, sr),
                 dtype=np.float32)
 
     # ── بلندی ──
@@ -240,3 +287,68 @@ def apply_reference_target(x, sr, profile):
         final_lufs = integrated_lufs(x, sr)
 
     return x.astype(np.float32), final_lufs
+
+
+# ══════════════════ پروفایل هدف از ۷ مقدار ══════════════════
+
+def build_target_profile(warmth_db, mid_db, brightness_db, tilt_db,
+                         lufs, crest_db, width):
+    """ساخت پروفایل کامل هدف از ۷ توصیف‌گر شنیداری (نه عدد الکی — منحنی تُنال
+    واقعی از همین مقادیر بازسازی می‌شه).
+
+    - زیر ۲۵۰Hz  → warmth_db (گرما/بم)
+    - ۲۵۰–۴kHz   → mid_db (میدرنج = لنگر)
+    - بالای ۴kHz → brightness_db (درخشش)
+    - tilt_db     فقط برای ثبت/گزارش (high − low)
+    """
+    db = np.zeros_like(FREQ_GRID)
+    low = FREQ_GRID < _MID_LO
+    mid = (FREQ_GRID >= _MID_LO) & (FREQ_GRID < _MID_HI)
+    high = FREQ_GRID >= _MID_HI
+    db[low] = float(warmth_db)
+    db[mid] = float(mid_db)
+    db[high] = float(brightness_db)
+    db = _smooth(db, 9)
+
+    return {
+        "grid": FREQ_GRID.tolist(),
+        "db": [round(float(v), 2) for v in db],
+        "warmth_db": round(float(warmth_db), 1),
+        "mid_db": round(float(mid_db), 1),
+        "brightness_db": round(float(brightness_db), 1),
+        "tilt_db": round(float(tilt_db), 1),
+        "lufs": float(lufs),
+        "crest_db": float(crest_db),
+        "width": float(width),
+    }
+
+
+def _measure(x, sr):
+    """اندازه‌گیری توصیف‌گرهای شنیداری یک سیگنال (برای اثبات تطبیق واقعی)."""
+    f, db = _spectrum_db(x, sr)
+    db = _on_grid(f, db)
+    db = _normalize_shape(db)
+    db = _smooth(db)
+    desc = _describe(db)
+    return {
+        "warmth_db": desc["warmth_db"],
+        "mid_db": desc["mid_db"],
+        "brightness_db": desc["brightness_db"],
+        "tilt_db": desc["tilt_db"],
+        "lufs": round(integrated_lufs(x, sr), 1),
+        "crest_db": round(_true_peak_db(x) - _rms_db(x), 1),
+        "width": round(_width_ratio(x), 3),
+    }
+
+
+def match_to_target(x, sr, target, amount=1.0, max_boost=15.0, max_cut=-15.0):
+    """رسوندن واقعی سیگنال به ۷ مقدار هدف + برگرداندن مقادیر اندازه‌گیریشده.
+
+    → (سیگنال, dict مقادیر واقعیِ بعد از پردازش)
+    """
+    # ۱) تُنال: Match EQ دقیق (سقف‌های بالا چون هدف صریحه)
+    y = apply_match_eq(x, sr, target, amount=amount,
+                       max_boost=max_boost, max_cut=max_cut)
+    # ۲) بلندی/پهنا/داینامیک
+    y, _ = apply_reference_target(y, sr, target)
+    return y, _measure(y, sr)

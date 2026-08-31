@@ -21,7 +21,10 @@ from src.audio_engine import (
     SR, db2lin, duck_under_vocal, encode_mp3, load_audio, master_chain,
     mix_and_master, save_wav, to_stereo, vocal_chain,
 )
-from src.match_eq import apply_match_eq, apply_reference_target
+from src.match_eq import (
+    apply_match_eq, apply_reference_target, build_target_profile,
+    match_to_target,
+)
 from src.reference_chain import derive_master_cfg, derive_vocal_cfg
 
 log = logging.getLogger("pipeline")
@@ -179,9 +182,24 @@ def process_mode(paths, mode, preset, workdir=None, match=None):
 
     # ── سوار کردن ۷ مقدار مرجع روی خروجی پریست (بدون تغییر پریست) ──
     if match:
-        y = apply_match_eq(y, sr, match)
-        y, _lufs = apply_reference_target(y, sr, match)
+        y, measured = match_to_target(y, sr, match)
         rep.append("🎯 ترکیب ۷ تنظیمات مرجع (تُنال/بلندی/پهنا/داینامیک)")
+        rep.append(f"   📊 اندازه‌گیریشده: بم {measured['warmth_db']:+}dB • "
+                   f"مید {measured['mid_db']:+}dB • درخشش {measured['brightness_db']:+}dB • "
+                   f"{measured['lufs']} LUFS")
+
+    # ── اعمال ۷ مقدار هدفِ صریح روی پریست (ref_target) — واقعی، نه عدد الکی ──
+    rt = preset.get("ref_target")
+    if rt:
+        tgt = build_target_profile(
+            rt["warmth_db"], rt["mid_db"], rt["brightness_db"], rt["tilt_db"],
+            rt["lufs"], rt["crest_db"], rt["width"])
+        y, measured = match_to_target(y, sr, tgt)
+        rep.append("🎯 اعمال ۷ مقدار هدف (واقعی، با اندازه‌گیری خروجی)")
+        rep.append(f"   📊 نتیجهٔ واقعی: بم {measured['warmth_db']:+}dB • "
+                   f"مید {measured['mid_db']:+}dB • درخشش {measured['brightness_db']:+}dB • "
+                   f"شیب {measured['tilt_db']:+}dB • {measured['lufs']} LUFS • "
+                   f"کرست {measured['crest_db']}dB • پهنا {measured['width']}")
 
     wav = workdir / f"out_{int(time.time())}.wav"
     save_wav(wav, y, sr)
