@@ -210,68 +210,70 @@ presets:
       mix: 0.28
 - id: rnb_smooth
   name: 🌙 آراندبی گرم
-  desc: نرم و مخملی با جلای ابریشمی — کمپرس اپتیکال خیلی لطیف برای حفظ حس
+  desc: آراندبی گرم و ابریشمی — باس عمیق، وکال نرم و درخشان، فضای باز
   vocal:
-    hpf_hz: 85
+    hpf_hz: 90
     working_lufs: -20
     tune:
-      strength: 0.6
-      snap: 60
+      strength: 0.35
+      snap: 30
       scale: auto
-      vibrato_keep: 0.9
+      vibrato_keep: 0.96
+    leveler:
+      target_db: -19
+      max_db: 2.5
     comp1:
       threshold_db: -14
-      ratio: 2.2
-      attack_ms: 10
-      release_ms: 160
+      ratio: 2.5
+      attack_ms: 8
+      release_ms: 120
     comp2:
       threshold_db: -16
       ratio: 2.0
-      attack_ms: 25
-      release_ms: 350
+      attack_ms: 20
+      release_ms: 320
     parallel:
-      threshold_db: -40
+      threshold_db: -34
       ratio: 6
-      mix: 0.2
+      mix: 0.24
     eq_low_shelf:
-      freq: 100
+      freq: 110
       gain_db: 3.0
     eq_dip:
-      freq: 1500
-      gain_db: -1.5
-      q: 1.4
+      freq: 2000
+      gain_db: -1.0
+      q: 1.6
     eq_presence:
       freq: 2800
-      gain_db: 2.0
+      gain_db: 2.5
       q: 0.9
     eq_gloss:
-      freq: 9000
-      gain_db: 1.5
+      freq: 9500
+      gain_db: 2.5
       q: 0.9
     eq_air_shelf:
-      freq: 16000
-      gain_db: 2.0
+      freq: 13500
+      gain_db: 2.5
     deess:
       threshold_db: -24.0
       ratio: 6.0
-      freq: 7200
-      makeup_db: 1.0
+      freq: 7300
     warmth:
-      drive_db: 3.0
-      mix: 0.4
+      drive_db: 4.0
+      mix: 0.45
     air:
-      freq: 10500
-      drive_db: 2.0
-      mix: 0.3
+      freq: 12000
+      drive_db: 2.5
+      mix: 0.38
     delay:
-      time_s: 0.28
+      time_s: 0.25
       feedback: 0.3
       mix: 0.1
     reverb:
-      room: 0.4
+      room: 0.5
       damping: 0.5
-      wet: 0.22
-    out_lufs: -18
+      wet: 0.28
+    out_lufs: -12
     deplosive:
       threshold_db: -14.0
       ratio: 4.0
@@ -279,10 +281,15 @@ presets:
       freq: 3500.0
       threshold_db: -22.0
       ratio: 3.5
+    eq_warm:
+      freq: 240
+      gain_db: 3.0
+      q: 0.8
+    gain_db: 2.5
   mix:
-    vocal_gain_db: 0.5
-    inst_gain_db: -2.0
-    duck_db: 2.0
+    vocal_gain_db: 2.0
+    inst_gain_db: -2.5
+    duck_db: 2.5
   master:
     working_lufs: -18
     hpf_hz: 24
@@ -296,14 +303,14 @@ presets:
       gain_db: 2.5
     eq_high_shelf:
       freq: 12000
-      gain_db: 1.0
-    width: 1.06
+      gain_db: 1.5
+    width: 1.08
     sat:
-      drive_db: 2.0
+      drive_db: 2.5
       mix: 0.25
     clip:
       ceiling_db: -2.5
-    lufs: -10
+    lufs: -9.5
     ceiling: -1.0
     bus_parallel:
       threshold_db: -32.0
@@ -507,71 +514,71 @@ presets:
       mix: 0.15
 - id: persian_pop
   name: 🌟 پاپ ایرانی
-  desc: وکال جلو، گرم و براق — اتوتیون ملوداینی محسوس، کمپرس لطیف و اپتیکال، جلا و
-    شفافیت خاص (سبک مسترهای پاپ فارسی)
+  desc: وکال شیشه‌ای و براق، گرم و پرقدرت — استاندارد روز پاپ ایرانی (بیس تنگ + تریبل
+    درخشان)
   vocal:
     hpf_hz: 95
     working_lufs: -20
     tune:
-      strength: 0.4
-      snap: 32
+      strength: 0.45
+      snap: 35
       scale: auto
       vibrato_keep: 0.95
     leveler:
       target_db: -19
       max_db: 2.5
     comp1:
-      threshold_db: -16
-      ratio: 3.5
-      attack_ms: 6
-      release_ms: 90
+      threshold_db: -14
+      ratio: 3.0
+      attack_ms: 5
+      release_ms: 85
     comp2:
-      threshold_db: -15
+      threshold_db: -16
       ratio: 2.2
       attack_ms: 18
-      release_ms: 300
+      release_ms: 280
     parallel:
       threshold_db: -36
       ratio: 8
-      mix: 0.35
+      mix: 0.28
     eq_low_shelf:
       freq: 120
-      gain_db: 6.5
+      gain_db: 2.5
     eq_dip:
       freq: 1800
-      gain_db: 0.0
+      gain_db: -1.5
       q: 1.6
     eq_presence:
-      freq: 2800
-      gain_db: 0.0
+      freq: 3200
+      gain_db: 3.5
       q: 0.9
     eq_gloss:
       freq: 9500
-      gain_db: 5.0
+      gain_db: 3.0
       q: 0.9
     eq_air_shelf:
       freq: 13500
-      gain_db: 4.5
+      gain_db: 3.5
     deess:
       threshold_db: -24.0
       ratio: 6.0
       freq: 7300
     warmth:
-      drive_db: 7.0
-      mix: 0.6
+      drive_db: 3.5
+      mix: 0.4
     air:
       freq: 12000
-      drive_db: 3.5
-      mix: 0.45
+      drive_db: 3.0
+      mix: 0.42
     delay:
       time_s: 0.21
       feedback: 0.32
       mix: 0.12
     reverb:
       room: 0.4
-      damping: 0.45
-      wet: 0.3
-    out_lufs: -10
+      damping: 0.5
+      wet: 0.22
+    out_lufs: -12
     deplosive:
       threshold_db: -14.0
       ratio: 4.0
@@ -581,11 +588,11 @@ presets:
       ratio: 3.5
     eq_warm:
       freq: 240
-      gain_db: 6.0
+      gain_db: 2.5
       q: 0.8
-    gain_db: 6.5
+    gain_db: 2.5
   mix:
-    vocal_gain_db: 3.0
+    vocal_gain_db: 2.5
     inst_gain_db: -3.0
     duck_db: 3.5
   master:
@@ -602,30 +609,18 @@ presets:
       release_ms: 240
     eq_low_shelf:
       freq: 85
-      gain_db: 3.5
+      gain_db: 1.5
     eq_high_shelf:
       freq: 11000
-      gain_db: 2.5
+      gain_db: 1.5
     width: 1.12
     sat:
       drive_db: 2.0
       mix: 0.18
     clip:
       ceiling_db: -2.2
-    lufs: -8.5
+    lufs: -9.5
     ceiling: -1.0
-    bus_parallel:
-      threshold_db: -30.0
-      ratio: 2.2
-      mix: 0.24
-  ref_target:
-    warmth_db: 10.0
-    mid_db: 0.0
-    brightness_db: 5.0
-    tilt_db: -5.0
-    lufs: -6.5
-    crest_db: 8.0
-    width: 0.441
 - id: viva
   name: 🌟 ویوا
   desc: وکال گرم، پرقدرت و براق + مسترینگ برنده — اتوتیون ملایم، حضور و درخشش بالا
