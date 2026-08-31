@@ -200,6 +200,8 @@ def process_mode(paths, mode, preset, workdir=None, match=None):
                    f"مید {measured['mid_db']:+}dB • درخشش {measured['brightness_db']:+}dB • "
                    f"شیب {measured['tilt_db']:+}dB • {measured['lufs']} LUFS • "
                    f"کرست {measured['crest_db']}dB • پهنا {measured['width']}")
+        import gc as _gc
+        _gc.collect()
 
     wav = workdir / f"out_{int(time.time())}.wav"
     save_wav(wav, y, sr)

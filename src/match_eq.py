@@ -76,14 +76,21 @@ def _rms_db(x):
 
 
 def _width_ratio(x):
-    """نسبت انرژی پهلو به وسط (side/mid) — شاخص پهنای استریو."""
+    """نسبت انرژی پهلو به وسط (side/mid) — شاخص پهنای استریو.
+
+    بدون ساخت آرایهٔ میانی mid/side (با dot) تا رم مصرف نشه.
+    """
     if x.ndim != 2 or x.shape[1] < 2:
         return 1.0
-    mid = (x[:, 0] + x[:, 1]) / 2.0
-    side = (x[:, 0] - x[:, 1]) / 2.0
-    sm = float(np.sqrt(np.mean(np.square(side))) + 1e-12)
-    mm = float(np.sqrt(np.mean(np.square(mid))) + 1e-12)
-    return sm / mm
+    L = x[:, 0]
+    R = x[:, 1]
+    LL = float(np.dot(L, L))
+    RR = float(np.dot(R, R))
+    LR = float(np.dot(L, R))
+    # sum(side²) = (LL+RR−2LR)/4 ، sum(mid²) = (LL+RR+2LR)/4
+    sm = np.sqrt(max(0.0, (LL + RR - 2.0 * LR)) * 0.25) + 1e-12
+    mm = np.sqrt(max(0.0, (LL + RR + 2.0 * LR)) * 0.25) + 1e-12
+    return float(sm / mm)
 
 
 def _widen_to_target(x, sr, target):
@@ -93,6 +100,8 @@ def _widen_to_target(x, sr, target):
     decorrelation‌شده (اختلاف تأخیر هاس ~12ms) برای «ساخت» پهنا استفاده می‌کنه —
     این پهنا واقعیه و با side/mid قابل اندازه‌گیریه، نه صرفاً برچسب.
     اگه عریض‌تر از هدف باشه، فقط پهلو رو کم می‌کنه (بدون دست‌کاری تُنال).
+
+    پیاده‌سازی با حداقل کپی (in-place + dot) تا روی فایل‌های بلند OOM نشه.
     """
     if x.ndim != 2 or x.shape[1] < 2:
         return x
@@ -102,33 +111,35 @@ def _widen_to_target(x, sr, target):
         amt = float(np.clip(target / cur, 0.05, 1.0))
         return width_ms(x, amt)
 
-    mid = (x[:, 0] + x[:, 1]) / 2.0
-    side = (x[:, 0] - x[:, 1]) / 2.0
+    mid = (x[:, 0] + x[:, 1]) * 0.5
+    side = (x[:, 0] - x[:, 1]) * 0.5
 
-    # سیگنال decorrelation‌شده از mid (تأخیر هاس — بدون تغییر طیف دامنه‌ای)
+    # سیگنال decorrelation‌شده از mid (تأخیر هاس ~12ms — درجا)
     d = max(1, int(round(0.012 * sr)))
-    dm = np.empty_like(mid)
-    dm[:d] = mid[:d]
-    dm[d:] = mid[:-d]
-    decor = (mid - dm).astype(np.float32)
+    decor = np.empty_like(mid)
+    decor[:d] = 0.0
+    np.subtract(mid[d:], mid[:-d], out=decor[d:])
 
-    m_rms = float(np.sqrt(np.mean(np.square(mid))) + 1e-12)
-    d_rms = float(np.sqrt(np.mean(np.square(decor))) + 1e-12)
-    s_rms = float(np.sqrt(np.mean(np.square(side))) + 1e-12)
+    m_rms = float(np.sqrt(np.dot(mid, mid) / len(mid)) + 1e-12)
+    d_rms = float(np.sqrt(np.dot(decor, decor) / len(decor)) + 1e-12)
+    s_rms = float(np.sqrt(np.dot(side, side) / len(side)) + 1e-12)
     if d_rms > 1e-9:
-        decor = decor * (m_rms / d_rms)  # هم‌انرژی با mid
+        decor *= (m_rms / d_rms)  # هم‌انرژی با mid (درجا)
 
     # c*decor به‌طوری‌که rms(side+c*decor)/rms(mid) = target
     # (decor ⊥ side و ⊥ mid تقریباً، پس جمع انرژی‌ها برقراره)
     c = float(np.sqrt(max(0.0, target * target - (s_rms / m_rms) ** 2)))
-    side_new = side + decor * c
+    side += decor * c  # درجا
+    del decor
 
-    s_new = float(np.sqrt(np.mean(np.square(side_new))) + 1e-12)
+    s_new = float(np.sqrt(np.dot(side, side) / len(side)) + 1e-12)
     if s_new > 1e-9:
-        side_new = side_new * (target * m_rms / s_new)
+        side *= (target * m_rms / s_new)  # درجا
 
-    out = np.stack([mid + side_new, mid - side_new], axis=1)
-    return out.astype(np.float32)
+    out = np.empty_like(x)
+    out[:, 0] = mid + side
+    out[:, 1] = mid - side
+    return out
 
 
 def analyze(path, sr=SR):
@@ -284,14 +295,14 @@ def _limiter_to_lufs(x, sr, target_lufs, ceiling_db=-1.0):
     from pedalboard import Compressor
 
     y = x.astype(np.float32)
-    for _ in range(10):
+    for _ in range(5):
         l = integrated_lufs(y, sr)
         if l <= -70.0:
             break
         gain = target_lufs - l
         if abs(gain) < 0.1:
             break
-        y = (y * np.float32(db2lin(float(np.clip(gain, -30.0, 30.0)))))
+        y *= np.float32(db2lin(float(np.clip(gain, -30.0, 30.0))))
         # لیمیتر سقف (کمپرسور نسبت ۲۰ ≈ brickwall، بدون گین خودکار)
         y = np.asarray(
             Compressor(threshold_db=ceiling_db, ratio=20.0,
