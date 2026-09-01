@@ -484,6 +484,78 @@ def add_double_layer(y, sr, cfg):
     return out.astype(np.float32)
 
 
+def vocal_space(y, sr, cfg):
+    """فضاسازی حرفه‌ای وکال/سلفژ: دیلی + ریورب + پره‌دلی + هوا — ضد «حمومی».
+
+    مشکل صدای حمومی سه عامله: ۱) ریورب بدون پره‌دلی → وکال توی خودِ ریورب
+    گم می‌شه؛ ۲) گل و باکس (۲۰۰–۴۰۰Hz) توی دم ریورب → صدا کدر و «توالت‌مانند»؛
+    ۳) دمِ خیلی بلند که همه‌چیز رو می‌شوره.
+
+    این ماژول:
+      • پره‌دلی (۴۰–۵۰ms) → وکال جلوت‌تر، ریورب پشتش.
+      • های‌پس روی ورودی ریورب و دیلی → حذف گل/باکس (بدون از دست دادن گرما).
+      • هوا/درخشش فقط روی دم ریورب → دم ابریشمی و شیشه‌ای، نه تاریک.
+      • گین و پیک‌گارد در پایان → بلندی درست بدون دیستورت.
+
+    cfg کلیدها: pre_delay_ms, room, damping, verb_wet, verb_hpf_hz,
+                air_mix, air_drive_db, delay_time_s, delay_feedback,
+                delay_mix, delay_hpf_hz, delay_lpf_hz, gain_db
+    """
+    from pedalboard import Delay, HighpassFilter, LowpassFilter, Reverb
+
+    single = y.ndim == 1
+    y = to_stereo(y).astype(np.float32)
+    dry = y
+
+    # ── پره‌دلی: ریورب کمی بعد از وکال شروع می‌شه → وکال جلو و شفاف ──
+    pd_ms = float(cfg.get("pre_delay_ms", 45.0))
+    pd_n = min(int(pd_ms / 1000.0 * sr), max(len(y) - 1, 0))
+    verb_in = np.zeros_like(y)
+    if pd_n > 0:
+        verb_in[pd_n:] = y[: len(y) - pd_n]
+
+    # ── حذف گل/باکس از ورودی ریورب ──
+    verb_in = HighpassFilter(
+        cutoff_frequency_hz=float(cfg.get("verb_hpf_hz", 260.0)))(verb_in, sr)
+
+    # ── دم ریورب (فقط خیس — خشک رو خودمون جمع می‌کنیم) ──
+    room = float(cfg.get("room", 0.5))
+    damping = float(cfg.get("damping", 0.5))
+    verb = Reverb(room_size=room, damping=damping,
+                  wet_level=1.0, dry_level=0.0, width=1.0)(verb_in, sr)
+
+    # ── هوا روی دم ریورب → دم ابریشمی/شیشه‌ای نه تاریک ──
+    air_mix = float(cfg.get("air_mix", 0.3))
+    if air_mix > 0:
+        verb = air_exciter(verb, sr, freq=11000.0,
+                           drive_db=float(cfg.get("air_drive_db", 2.5)),
+                           mix=air_mix)
+
+    # ── دیلی (اکو) با فیلتر ضدگل ──
+    dt = float(cfg.get("delay_time_s", 0.24))
+    dfb = float(cfg.get("delay_feedback", 0.32))
+    dmix = float(cfg.get("delay_mix", 0.12))
+    dl = Delay(delay_seconds=dt, feedback=dfb, mix=1.0)(y, sr)
+    dl = HighpassFilter(
+        cutoff_frequency_hz=float(cfg.get("delay_hpf_hz", 320.0)))(dl, sr)
+    lpf = cfg.get("delay_lpf_hz")
+    if lpf:
+        dl = LowpassFilter(cutoff_frequency_hz=float(lpf))(dl, sr)
+
+    # ── ترکیب: خشک + دیلی + ریورب ──
+    out = dry + dl * np.float32(dmix) + verb * np.float32(float(cfg.get("verb_wet", 0.32)))
+
+    # ── گین درست + گارد پیک ──
+    g = float(cfg.get("gain_db", 0.0))
+    if g:
+        out = out * np.float32(db2lin(g))
+    pk = float(np.max(np.abs(out)))
+    if pk > 0.98:
+        out = out * np.float32(0.98 / pk)
+
+    return (out[:, 0] if single else out).astype(np.float32)
+
+
 # ══════════════════ زنجیره وکال ══════════════════
 
 def vocal_chain(x, sr, v):
@@ -670,16 +742,22 @@ def vocal_chain(x, sr, v):
             y, sr, block_s=30.0)
         rep.append("نرم‌کردن سخت‌خوانی (ش/خ/ج) — بدون حالت توییتری")
 
-    d = v.get("delay")
-    if d:
-        y = Delay(delay_seconds=d["time_s"], feedback=d["feedback"],
-                  mix=d["mix"])(y, sr)
-        rep.append(f"اکو (Delay {d['time_s']}s)")
-    rv = v.get("reverb")
-    if rv:
-        y = Reverb(room_size=rv["room"], damping=rv["damping"],
-                   wet_level=rv["wet"], dry_level=1.0, width=1.0)(y, sr)
-        rep.append(f"ریورب (فضاسازی {int(rv['room'] * 100)}٪)")
+    # ── فضاسازی حرفه‌ای (دیلی + ریورب + پره‌دلی + هوا) — ضد حمومی ──
+    sp = v.get("space")
+    if sp is None:
+        # سازگاری با تنظیمات قدیم (delay/reverb جدا) → ساخت cfg از اون‌ها
+        sp = {"enabled": True}
+        if v.get("delay"):
+            sp["delay_time_s"] = v["delay"].get("time_s", 0.24)
+            sp["delay_feedback"] = v["delay"].get("feedback", 0.3)
+            sp["delay_mix"] = v["delay"].get("mix", 0.12)
+        if v.get("reverb"):
+            sp["room"] = v["reverb"].get("room", 0.5)
+            sp["damping"] = v["reverb"].get("damping", 0.5)
+            sp["verb_wet"] = v["reverb"].get("wet", 0.32)
+    if sp and sp.get("enabled", True):
+        y = vocal_space(y, sr, sp)
+        rep.append("فضاسازی حرفه‌ای (پره‌دلی + دیلی + ریورب + هوای دم)")
 
     target = v.get("out_lufs", -18.0)
     y = normalize_lufs(y, sr, target=target, ceiling_db=-3.0)
