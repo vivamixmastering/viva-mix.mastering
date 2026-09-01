@@ -645,6 +645,11 @@ def vocal_chain(x, sr, v):
         y = PeakFilter(cutoff_frequency_hz=gl["freq"], gain_db=gl["gain_db"],
                        q=gl.get("q", 0.9))(y, sr)
         rep.append(f"جلا و براقیت ({gl['gain_db']:+g}dB @ {gl['freq']}Hz)")
+    treb = v.get("eq_high_shelf")
+    if treb:
+        y = HighShelfFilter(cutoff_frequency_hz=treb["freq"],
+                            gain_db=treb["gain_db"])(y, sr)
+        rep.append(f"تریبل (شلف بالا {treb['gain_db']:+g}dB @ {treb['freq']}Hz)")
     airs = v.get("eq_air_shelf")
     if airs:
         y = HighShelfFilter(cutoff_frequency_hz=airs["freq"],
@@ -789,6 +794,12 @@ def master_chain(x, sr, m):
         y = HighShelfFilter(cutoff_frequency_hz=hs["freq"],
                             gain_db=hs["gain_db"])(y, sr)
         rep.append(f"درخشش کل ({hs['gain_db']:+g}dB @ {hs['freq']}Hz)")
+
+    pr = m.get("eq_presence")
+    if pr:
+        y = PeakFilter(cutoff_frequency_hz=pr["freq"], gain_db=pr["gain_db"],
+                       q=pr.get("q", 1.0))(y, sr)
+        rep.append(f"حضور سازها ({pr['gain_db']:+g}dB @ {pr['freq']}Hz)")
 
     gl = m.get("eq_gloss")
     if gl:
