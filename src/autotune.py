@@ -375,6 +375,11 @@ def autotune(data, sr=SR, strength=0.5, snap_cents=50, f0_floor=75,
     data = np.asarray(data)
     if data.ndim == 2 and data.shape[1] == 1:  # (نمونه، ۱) → مونو
         data = data[:, 0]
+    if data.ndim == 2:
+        # بعد از ترمیم استریو (stereo_repair) دو کانال یکسانه → مونو پردازش کن
+        # (ذخیرهٔ رم: split مید/ساید و مونتاژ استریو در پایان حذف می‌شن)
+        if np.array_equal(data[:, 0], data[:, 1]):
+            data = data[:, 0]
     stereo = data.ndim == 2
     if stereo:
         mid = ((data[:, 0] + data[:, 1]) / 2.0).astype(np.float32)
@@ -433,5 +438,8 @@ def autotune(data, sr=SR, strength=0.5, snap_cents=50, f0_floor=75,
         tuned *= np.float32(0.985 / pk)
 
     if stereo:
-        return np.stack([tuned + side, tuned - side], axis=1).astype(np.float32), info
+        out = np.empty((len(tuned), 2), dtype=np.float32)
+        np.add(tuned, side, out=out[:, 0])
+        np.subtract(tuned, side, out=out[:, 1])
+        return out.astype(np.float32, copy=False), info
     return tuned.astype(np.float32), info

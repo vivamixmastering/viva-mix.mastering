@@ -6,7 +6,6 @@ scipy
 soundfile
 pyyaml
 pedalboard
-pyloudnorm
 pyworld
 python-dotenv
 aiohttp

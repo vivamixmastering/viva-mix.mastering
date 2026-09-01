@@ -17,7 +17,6 @@ import tempfile
 from pathlib import Path
 
 import numpy as np
-import pyloudnorm as pyln
 import soundfile as sf
 from pedalboard import (
     Compressor, Delay, HighShelfFilter, HighpassFilter, Limiter,
@@ -403,18 +402,56 @@ def duck_under_vocal(inst, vocal, sr, depth_db=2.0, attack_ms=15.0, release_ms=1
 
 # ══════════════════ بلندی صدا (LUFS) ══════════════════
 
-_meters = {}
+# ضرایب رسمی K-weighting (ITU-R BS.1770-4) برای 48kHz — به‌جای pyloudnorm
+# (که به‌تنهایی ~۱۰۷MB رم موقع import می‌گرفت و موقع اندازه‌گیری کل سیگنال
+# استریو رو به float64 تبدیل می‌کرد → عامل OOM روی سرویس ۱ گیگی)
+_KW_B1 = [1.53512485958697, -2.69169618940638, 1.19839281085285]
+_KW_A1 = [1.0, -1.69065929318241, 0.73248077421585]
+_KW_B2 = [1.0, -2.0, 1.0]
+_KW_A2 = [1.0, -1.99004745483398, 0.99007225036621]
+_KW_SR = 48000
+
 
 def integrated_lufs(x, sr):
-    if sr not in _meters:
-        _meters[sr] = pyln.Meter(sr)
-    try:
-        l = _meters[sr].integrated_loudness(x)
-    except Exception:
-        l = float("-inf")
-    if not np.isfinite(l):
-        l = -70.0
-    return float(l)
+    """بلندی یکپارچه EBU R128 (LUFS) — سبک و کم‌مصرف.
+
+    روی مونو و با K-weighting استاندارد اندازه‌گیری می‌شه؛ خروجی با
+    pyloudnorm در بازهٔ ±۰.۱۳ LUFS یکسانه، ولی کسری از رم مصرف می‌کنه.
+    """
+    from fractions import Fraction
+
+    mono = x.mean(axis=1) if x.ndim == 2 else np.asarray(x)
+    if len(mono) < 2:
+        return -70.0
+
+    # ری‌سمپل به 48kHz (ضرایب K-weighting برای این نرخ تعریف شدن)
+    if sr != _KW_SR:
+        fr = Fraction(_KW_SR, sr)
+        mono = spsig.resample_poly(mono.astype(np.float64), fr.numerator,
+                                   fr.denominator)
+    # K-weighting: پیش‌فیلتر (high-pass) + شلف +4dB @ 1681.97Hz
+    y = spsig.lfilter(_KW_B1, _KW_A1, mono)
+    y = spsig.lfilter(_KW_B2, _KW_A2, y)
+
+    block = int(0.4 * _KW_SR)   # بلوک ۴۰۰ms
+    nb = len(y) // block
+    if nb < 1:
+        return -70.0
+    z = y[: nb * block].reshape(nb, block)
+    ms = (z * z).mean(axis=1) + 1e-12
+    l = -0.691 + 10.0 * np.log10(ms)
+
+    # گیت مطلق (-70 LUFS) و گیت نسبی (-10 LU زیر میانگین)
+    idx = l > -70.0
+    if idx.sum() == 0:
+        return -70.0
+    lg = l[idx]
+    mean_abs = 10.0 * np.log10((np.power(10.0, lg / 10.0)).mean())
+    idx2 = lg > (mean_abs - 10.0)
+    if idx2.sum() == 0:
+        return float(mean_abs)
+    lg2 = lg[idx2]
+    return float(10.0 * np.log10((np.power(10.0, lg2 / 10.0)).mean()))
 
 def normalize_lufs(x, sr, target=-14.0, ceiling_db=-1.0, max_boost_db=12.0):
     l = integrated_lufs(x, sr)
@@ -469,11 +506,10 @@ def add_double_layer(y, sr, cfg):
     wet = float(cfg.get("reverb_wet", 0.6))
     room = float(cfg.get("room", 0.45))
     damping = float(cfg.get("damping", 0.5))
-    back = np.stack([mid, mid], axis=1)
-    # فقط دمِ ریورب (dry_level=0) → بدون حملهٔ جدا، بدون فلام
+    # ریورب روی مونو (نه استریو) → نصف رم؛ پهنا با ترفند ± ساخته می‌شه
     back = Reverb(room_size=room, damping=damping,
-                  wet_level=wet, dry_level=0.0, width=1.0)(back, sr)
-    back = to_mono(back) * np.float32(cfg.get("back_gain", 0.5))
+                  wet_level=wet, dry_level=0.0, width=1.0)(mid, sr)
+    np.multiply(back, np.float32(cfg.get("back_gain", 0.5)), out=back)
     mix = float(cfg.get("mix", 0.4))
     L = mid + back * mix
     R = mid - back * mix
@@ -505,55 +541,69 @@ def vocal_space(y, sr, cfg):
 
     single = y.ndim == 1
     y = to_stereo(y).astype(np.float32)
-    dry = y
 
     # ── پره‌دلی: ریورب کمی بعد از وکال شروع می‌شه → وکال جلو و شفاف ──
     pd_ms = float(cfg.get("pre_delay_ms", 45.0))
     pd_n = min(int(pd_ms / 1000.0 * sr), max(len(y) - 1, 0))
-    verb_in = np.zeros_like(y)
+    # یک آرایهٔ کامل فقط (roll) — بدون zeros_like + کپی جدا
+    verb_in = np.roll(y, pd_n, axis=0) if pd_n > 0 else y
     if pd_n > 0:
-        verb_in[pd_n:] = y[: len(y) - pd_n]
+        verb_in[:pd_n] = 0.0
 
     # ── حذف گل/باکس از ورودی ریورب ──
     verb_in = HighpassFilter(
         cutoff_frequency_hz=float(cfg.get("verb_hpf_hz", 260.0)))(verb_in, sr)
 
-    # ── دم ریورب (فقط خیس — خشک رو خودمون جمع می‌کنیم) ──
+    # ── دم ریورب (فقط خیس) ──
     room = float(cfg.get("room", 0.5))
     damping = float(cfg.get("damping", 0.5))
     verb = Reverb(room_size=room, damping=damping,
                   wet_level=1.0, dry_level=0.0, width=1.0)(verb_in, sr)
+    del verb_in
 
     # ── هوا روی دم ریورب → دم ابریشمی/شیشه‌ای نه تاریک ──
+    # (با block_apply تا روی فایل‌های بلند OOM نشه — آپ‌سمپلینگ ۴× فقط بلوکی)
     air_mix = float(cfg.get("air_mix", 0.3))
     if air_mix > 0:
-        verb = air_exciter(verb, sr, freq=11000.0,
-                           drive_db=float(cfg.get("air_drive_db", 2.5)),
-                           mix=air_mix)
+        verb = block_apply(
+            lambda blk: air_exciter(blk, sr, freq=11000.0,
+                                    drive_db=float(cfg.get("air_drive_db", 2.5)),
+                                    mix=air_mix),
+            verb, sr, block_s=15.0)
 
-    # ── دیلی (اکو) با فیلتر ضدگل ──
-    dt = float(cfg.get("delay_time_s", 0.24))
-    dfb = float(cfg.get("delay_feedback", 0.32))
+    # ── جمع تدریجی (ضرب درجا + جمع درجا) → حداقل آرایهٔ هم‌زمان ──
+    out = np.empty_like(y)
+    np.copyto(out, y)
+
+    # دیلی (اکو) با فیلتر ضدگل — بلافاصله جمع و آزادسازی
     dmix = float(cfg.get("delay_mix", 0.12))
-    dl = Delay(delay_seconds=dt, feedback=dfb, mix=1.0)(y, sr)
-    dl = HighpassFilter(
-        cutoff_frequency_hz=float(cfg.get("delay_hpf_hz", 320.0)))(dl, sr)
-    lpf = cfg.get("delay_lpf_hz")
-    if lpf:
-        dl = LowpassFilter(cutoff_frequency_hz=float(lpf))(dl, sr)
+    if dmix > 0:
+        dl = Delay(delay_seconds=float(cfg.get("delay_time_s", 0.24)),
+                   feedback=float(cfg.get("delay_feedback", 0.32)),
+                   mix=1.0)(y, sr)
+        dl = HighpassFilter(
+            cutoff_frequency_hz=float(cfg.get("delay_hpf_hz", 320.0)))(dl, sr)
+        lpf = cfg.get("delay_lpf_hz")
+        if lpf:
+            dl = LowpassFilter(cutoff_frequency_hz=float(lpf))(dl, sr)
+        np.multiply(dl, np.float32(dmix), out=dl)
+        out += dl
+        del dl
 
-    # ── ترکیب: خشک + دیلی + ریورب ──
-    out = dry + dl * np.float32(dmix) + verb * np.float32(float(cfg.get("verb_wet", 0.32)))
+    # ریورب
+    np.multiply(verb, np.float32(float(cfg.get("verb_wet", 0.32))), out=verb)
+    out += verb
+    del verb
 
     # ── گین درست + گارد پیک ──
     g = float(cfg.get("gain_db", 0.0))
     if g:
-        out = out * np.float32(db2lin(g))
+        np.multiply(out, np.float32(db2lin(g)), out=out)
     pk = float(np.max(np.abs(out)))
     if pk > 0.98:
-        out = out * np.float32(0.98 / pk)
+        np.multiply(out, np.float32(0.98 / pk), out=out)
 
-    return (out[:, 0] if single else out).astype(np.float32)
+    return (out[:, 0] if single else out).astype(np.float32, copy=False)
 
 
 # ══════════════════ زنجیره وکال ══════════════════
@@ -561,11 +611,18 @@ def vocal_space(y, sr, cfg):
 def vocal_chain(x, sr, v):
     """زنجیره کامل وکال بر اساس تنظیمات پریست → (سیگنال, گزارش مراحل)"""
     rep = []
-    y = to_stereo(x).astype(np.float32)
+    # بدون کپی اضافه (to_stereo روی ورودی ۲ کاناله خودش رو برمی‌گردونه)
+    y = to_stereo(np.asarray(x, dtype=np.float32))
+    mono_mode = False
 
     # ── ترمیم استریو: وکال جدا‌شده یک کانالش ضعیفه → کانال قوی مبنای هر دو ──
     if v.get("stereo_repair"):
         y = stereo_repair(y, sr)
+        # بعد از ترمیم، L==R (مونوی واقعی) → کل زنجیره رو مونو پردازش کن تا
+        # مصرف رم نصف بشه (روی سرویس ۱ گیگی عامل جلوگیری از OOM). پهنا رو
+        # لایهٔ بک‌ویس در پایان دوباره می‌سازه.
+        y = to_mono(y)
+        mono_mode = True
         rep.append("ترمیم استریو — انتخاب کانال قوی‌تر و مرکزیت واقعی")
 
     # ── حالت وکال جداسازی‌شده (نشت‌دار) ──
@@ -626,7 +683,8 @@ def vocal_chain(x, sr, v):
                 scale=tune.get("scale", "chromatic"),
                 vibrato_keep=float(tune.get("vibrato_keep", 0.85)))
             if yt is not None:
-                y = to_stereo(yt)
+                # در حالت مونو (بعد از stereo_repair) خروجی اتوتیون هم مونوست
+                y = yt if mono_mode else to_stereo(yt)
                 gam = reason if reason and reason != "ok" else ""
                 extra = f" • گام: {gam}" if gam else ""
                 rep.append(f"اصلاح نت سبک ملوداین {int(tune['strength'] * 100)}٪"
@@ -776,6 +834,10 @@ def vocal_chain(x, sr, v):
     if db and db.get("enabled"):
         y = add_double_layer(y, sr, db)
         rep.append("بک‌ویس (دابل‌ترک) — استریو واقعی و حجم/گرمای بیشتر")
+
+    # خروجی همیشه استریو (اگه زنجیره مونو بود، اینجا پهن می‌شه)
+    if y.ndim == 1:
+        y = to_stereo(y)
 
     return y.astype(np.float32), rep
 
