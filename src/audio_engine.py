@@ -452,57 +452,29 @@ def stereo_repair(x, sr):
     return np.stack([core, core], axis=1).astype(np.float32)
 
 
-def _double_layer(core, sr, delay_ms=18.0, depth_ms=6.0, rate_hz=0.6):
-    """بک‌ویس (دابل‌ترک): کپی با تأخیر مدوله‌شده (کورس‌مانند) → دی‌تیون طبیعی
-    و حرکت، بدون کلیک/الیاس و بدون فریزِ پایان.
-
-    پیاده‌سازی کم‌مصرف: float32 + تاخیر کسری با درون‌یابی خطی (دو شیفت
-    برداری)، بدون آرایه‌های float64 بزرگ → روی فایل‌های بلند OOM نمی‌شه.
-    """
-    x = core.astype(np.float32)
-    n = len(x)
-    # مدولاسیون تاخیر: مقدار در گره‌ها محاسبه و بین گره‌ها درون‌یابی خطی می‌شه
-    # (پیوسته → بدون کلیک/تیک). قبلاً با np.repeat پله‌ای بود و هر 0.25s
-    # یک پرش ناگهانی تاخیر = یک «تیک» ریز (۴ تیک در ثانیه) درست می‌کرد.
-    chunk = max(1, int(sr * 0.25))
-    nseg = (n + chunk - 1) // chunk
-    node_pos = (np.arange(nseg, dtype=np.float32) * chunk)
-    node_t = node_pos / sr
-    seg_d = (delay_ms / 1000.0 + (depth_ms / 1000.0)
-             * np.sin(2.0 * np.pi * rate_hz * node_t)).astype(np.float32) * sr
-    seg_d = np.clip(seg_d, 2.0, float(n - 2))
-    # درون‌یابی خطی بین گره‌ها → تاخیر پیوسته به ازای هر نمونه (همان طول n)
-    d = np.interp(np.arange(n, dtype=np.float32), node_pos, seg_d).astype(np.float32)
-    d0 = np.floor(d).astype(np.int32)
-    frac = (d - d0).astype(np.float32)
-    d0 = np.clip(d0, 1, n - 2)
-    i0 = np.arange(n, dtype=np.int32)
-    a = x[np.clip(i0 - d0, 0, n - 1)]
-    b = x[np.clip(i0 - d0 - 1, 0, n - 1)]
-    return ((1.0 - frac) * a + frac * b).astype(np.float32)
-
-
 def add_double_layer(y, sr, cfg):
-    """افزودن لایهٔ بک‌ویس به وکال → استریو واقعی + حجم و گرما.
+    """لایهٔ بک‌ویس به وکال → استریو واقعی + عمق/حجم، بدون فلام (یک صدا).
 
-    وکال اصلی در مرکز می‌مونه؛ بک‌ویس (دابل) با ریورب/گین سبک (۳۰٪) روی
-    پهلوها سوار می‌شه. خروجی: L = mid + back، R = mid − back (پهنای واقعی).
+    نسخهٔ قدیم یک «کپی با تأخیر ~۱۸ms» می‌ساخت که مغز اون رو به‌صورت دو
+    صدای جدا با فاصلهٔ کم (فلام) می‌شنید. حالا بک‌ویس فقط از «دمِ ریورب»
+    ساخته می‌شه: دقیقاً هم‌زمان با وکال (بدون هیچ آفست زمانی) و چون ریورب
+    ذاتاً پخش و دی‌کورِله، پهنا می‌سازه ولی یک صدا شنیده می‌شه.
+
+    خروجی: L = mid + back، R = mid − back (پهنای واقعی، سازگار با مونو —
+    بک‌ویس در جمع مونو حذف می‌شه و وکال در مرکز می‌مونه).
     """
     from pedalboard import Reverb
 
     mid = to_mono(y)
-    back = _double_layer(mid, sr,
-                         delay_ms=cfg.get("delay_ms", 18.0),
-                         depth_ms=cfg.get("depth_ms", 6.0),
-                         rate_hz=cfg.get("rate_hz", 0.6))
-    back = np.stack([back, back], axis=1)
-    if cfg.get("reverb_wet"):
-        back = Reverb(room_size=cfg.get("room", 0.45),
-                      damping=cfg.get("damping", 0.5),
-                      wet_level=cfg["reverb_wet"], dry_level=1.0,
-                      width=1.0)(back, sr)
-    back = to_mono(back) * np.float32(cfg.get("back_gain", 0.3))
-    mix = cfg.get("mix", 0.35)
+    wet = float(cfg.get("reverb_wet", 0.6))
+    room = float(cfg.get("room", 0.45))
+    damping = float(cfg.get("damping", 0.5))
+    back = np.stack([mid, mid], axis=1)
+    # فقط دمِ ریورب (dry_level=0) → بدون حملهٔ جدا، بدون فلام
+    back = Reverb(room_size=room, damping=damping,
+                  wet_level=wet, dry_level=0.0, width=1.0)(back, sr)
+    back = to_mono(back) * np.float32(cfg.get("back_gain", 0.5))
+    mix = float(cfg.get("mix", 0.4))
     L = mid + back * mix
     R = mid - back * mix
     out = np.stack([L, R], axis=1)

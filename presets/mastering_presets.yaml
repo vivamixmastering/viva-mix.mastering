@@ -293,14 +293,11 @@ presets:
     stereo_repair: true
     double:
       enabled: true
-      delay_ms: 18.0
-      depth_ms: 6.0
-      rate_hz: 0.6
-      mix: 0.4
-      back_gain: 0.4
-      reverb_wet: 0.18
-      room: 0.45
+      reverb_wet: 0.6
+      room: 0.5
       damping: 0.5
+      back_gain: 0.5
+      mix: 0.4
     eq_high_shelf:
       freq: 8000
       gain_db: 4.5
@@ -633,14 +630,11 @@ presets:
     stereo_repair: true
     double:
       enabled: true
-      delay_ms: 18.0
-      depth_ms: 6.0
-      rate_hz: 0.6
-      mix: 0.4
-      back_gain: 0.4
-      reverb_wet: 0.18
-      room: 0.45
+      reverb_wet: 0.6
+      room: 0.5
       damping: 0.5
+      back_gain: 0.5
+      mix: 0.4
     eq_high_shelf:
       freq: 8000
       gain_db: 4.5
@@ -772,14 +766,11 @@ presets:
     stereo_repair: true
     double:
       enabled: true
-      delay_ms: 18.0
-      depth_ms: 6.0
-      rate_hz: 0.6
-      mix: 0.4
-      back_gain: 0.4
-      reverb_wet: 0.18
-      room: 0.45
+      reverb_wet: 0.6
+      room: 0.5
       damping: 0.5
+      back_gain: 0.5
+      mix: 0.4
     eq_high_shelf:
       freq: 8000
       gain_db: 4.5
@@ -911,14 +902,11 @@ presets:
     stereo_repair: true
     double:
       enabled: true
-      delay_ms: 18.0
-      depth_ms: 6.0
-      rate_hz: 0.6
-      mix: 0.4
-      back_gain: 0.4
-      reverb_wet: 0.18
-      room: 0.45
+      reverb_wet: 0.6
+      room: 0.5
       damping: 0.5
+      back_gain: 0.5
+      mix: 0.4
     eq_high_shelf:
       freq: 8000
       gain_db: 4.5
