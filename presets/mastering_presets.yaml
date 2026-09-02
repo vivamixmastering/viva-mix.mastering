@@ -215,10 +215,10 @@ presets:
     hpf_hz: 90
     working_lufs: -20
     tune:
-      strength: 0.05
-      snap: 30
       scale: auto
-      vibrato_keep: 0.96
+      snap: 50
+      strength: 0.18
+      vibrato_keep: 0.95
     leveler:
       target_db: -19
       max_db: 2.5
@@ -285,11 +285,13 @@ presets:
     stereo_repair: true
     double:
       enabled: true
-      reverb_wet: 0.15
+      detune_cents: 7.0
+      delay_ms: 0.0
+      reverb_wet: 0.12
       room: 0.35
       damping: 0.5
-      back_gain: 0.32
-      mix: 0.25
+      back_gain: 0.4
+      mix: 0.3
     eq_high_shelf:
       freq: 8000
       gain_db: 2.0
@@ -578,10 +580,10 @@ presets:
     hpf_hz: 95
     working_lufs: -20
     tune:
-      strength: 0.05
-      snap: 30
       scale: auto
-      vibrato_keep: 0.96
+      snap: 50
+      strength: 0.18
+      vibrato_keep: 0.95
     leveler:
       target_db: -19
       max_db: 2.5
@@ -648,11 +650,13 @@ presets:
     stereo_repair: true
     double:
       enabled: true
-      reverb_wet: 0.15
+      detune_cents: 7.0
+      delay_ms: 0.0
+      reverb_wet: 0.12
       room: 0.35
       damping: 0.5
-      back_gain: 0.32
-      mix: 0.25
+      back_gain: 0.4
+      mix: 0.3
     eq_high_shelf:
       freq: 8000
       gain_db: 2.0
@@ -740,10 +744,10 @@ presets:
     hpf_hz: 95
     working_lufs: -20
     tune:
-      strength: 0.05
-      snap: 30
       scale: auto
-      vibrato_keep: 0.96
+      snap: 50
+      strength: 0.18
+      vibrato_keep: 0.95
     leveler:
       target_db: -19
       max_db: 2.5
@@ -810,11 +814,13 @@ presets:
     stereo_repair: true
     double:
       enabled: true
-      reverb_wet: 0.15
+      detune_cents: 7.0
+      delay_ms: 0.0
+      reverb_wet: 0.12
       room: 0.35
       damping: 0.5
-      back_gain: 0.32
-      mix: 0.25
+      back_gain: 0.4
+      mix: 0.3
     eq_high_shelf:
       freq: 8000
       gain_db: 2.0
@@ -902,10 +908,10 @@ presets:
     hpf_hz: 95
     working_lufs: -20
     tune:
-      strength: 0.05
-      snap: 30
       scale: auto
-      vibrato_keep: 0.96
+      snap: 50
+      strength: 0.18
+      vibrato_keep: 0.95
     leveler:
       target_db: -19
       max_db: 2.5
@@ -972,11 +978,13 @@ presets:
     stereo_repair: true
     double:
       enabled: true
-      reverb_wet: 0.15
+      detune_cents: 7.0
+      delay_ms: 0.0
+      reverb_wet: 0.12
       room: 0.35
       damping: 0.5
-      back_gain: 0.32
-      mix: 0.25
+      back_gain: 0.4
+      mix: 0.3
     eq_high_shelf:
       freq: 8000
       gain_db: 2.0

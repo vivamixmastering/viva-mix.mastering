@@ -544,29 +544,65 @@ def stereo_repair(x, sr):
 
 
 def add_double_layer(y, sr, cfg):
-    """لایهٔ بک‌ویس به وکال → استریو واقعی + عمق/حجم، بدون فلام (یک صدا).
+    """لایهٔ بک‌ویس به وکال → استریو واقعی + ضخامت «دوتِرَک» (ADT).
 
-    نسخهٔ قدیم یک «کپی با تأخیر ~۱۸ms» می‌ساخت که مغز اون رو به‌صورت دو
-    صدای جدا با فاصلهٔ کم (فلام) می‌شنید. حالا بک‌ویس فقط از «دمِ ریورب»
-    ساخته می‌شه: دقیقاً هم‌زمان با وکال (بدون هیچ آفست زمانی) و چون ریورب
-    ذاتاً پخش و دی‌کورِله، پهنا می‌سازه ولی یک صدا شنیده می‌شه.
+    دو حالت (بر اساس cfg):
+      • detune_cents > 0 → ADT واقعی: هر کانال یک دیتونِ خیلی ریز (± سنت)
+        می‌گیره. این «ضخامت» و «حجم» دابل‌ترک استودیویی می‌ده (مثل Waves
+        Doubler / Little AlterBoy) بدون فلام و بدون صدای دو-لاین (چون
+        اختلاف فقط در پیچ است، نه زمان).
+      • detune_cents = 0 → فقط دمِ ریورب (پهنا با عمق، ایمن و مونو-سازگار).
 
-    خروجی: L = mid + back، R = mid − back (پهنای واقعی، سازگار با مونو —
-    بک‌ویس در جمع مونو حذف می‌شه و وکال در مرکز می‌مونه).
+    delay_ms اختیاری زیر ۵ms (Haas) هم می‌تونه اضافه بشه ولی پیش‌فرض ۰ است
+    تا هیچ فلامی برنگرده.
     """
-    from pedalboard import Reverb
+    from pedalboard import PitchShift, Reverb
 
     mid = to_mono(y)
-    wet = float(cfg.get("reverb_wet", 0.6))
-    room = float(cfg.get("room", 0.45))
+    detune = float(cfg.get("detune_cents", 0.0))
+    wet = float(cfg.get("reverb_wet", 0.1))
+    room = float(cfg.get("room", 0.35))
     damping = float(cfg.get("damping", 0.5))
-    # ریورب روی مونو (نه استریو) → نصف رم؛ پهنا با ترفند ± ساخته می‌شه
-    back = Reverb(room_size=room, damping=damping,
-                  wet_level=wet, dry_level=0.0, width=1.0)(mid, sr)
-    np.multiply(back, np.float32(cfg.get("back_gain", 0.5)), out=back)
-    mix = float(cfg.get("mix", 0.4))
-    L = mid + back * mix
-    R = mid - back * mix
+    back_gain = float(cfg.get("back_gain", 0.4))
+    mix = float(cfg.get("mix", 0.3))
+    delay_ms = float(cfg.get("delay_ms", 0.0))
+
+    if detune > 0.5:
+        # ADT واقعی: دیتون ± روی هر کانال (مونو → مونو، کم‌مصرف)
+        up = np.asarray(PitchShift(semitones=detune / 100.0)(mid, sr),
+                        dtype=np.float32)
+        down = np.asarray(PitchShift(semitones=-detune / 100.0)(mid, sr),
+                          dtype=np.float32)
+        back_l, back_r = up, down
+    else:
+        # ریورب-فقط (سازگار با مونو — بک‌ویس در جمع مونو حذف می‌شه)
+        back = np.asarray(
+            Reverb(room_size=room, damping=damping,
+                   wet_level=wet, dry_level=0.0, width=1.0)(mid, sr),
+            dtype=np.float32)
+        back_l = back_r = back
+
+    # Haas خیلی کوتاه (اختیاری، زیر ۵ms — بدون فلام)
+    if delay_ms > 0:
+        d = int(delay_ms / 1000.0 * sr)
+        if d > 0:
+            back_l = np.concatenate([np.zeros(d, np.float32), back_l[:-d]])
+            back_r = np.concatenate([np.zeros(d, np.float32), back_r[:-d]])
+
+    # ریورب سبک روی بک‌ویس برای عمق (اگه دیتون بود، فقط برای فضا)
+    if wet > 0 and detune > 0.5:
+        back_l = np.asarray(
+            Reverb(room_size=room, damping=damping,
+                   wet_level=wet, dry_level=1.0, width=1.0)(back_l, sr),
+            dtype=np.float32)
+        back_r = np.asarray(
+            Reverb(room_size=room, damping=damping,
+                   wet_level=wet, dry_level=1.0, width=1.0)(back_r, sr),
+            dtype=np.float32)
+
+    g = np.float32(back_gain * mix)
+    L = mid + back_l * g
+    R = mid + back_r * g
     out = np.stack([L, R], axis=1)
     pk = float(np.max(np.abs(out)))
     if pk > 0.985:
