@@ -138,17 +138,24 @@ def env_follow(x, sr, attack_ms=10.0, release_ms=120.0):
 def _band_deess(x, sr, lo_hz, hi_hz, threshold_db, ratio,
                 attack_ms, release_ms):
     """هستهٔ دی‌اسر باندی: باند lo..hi رو جدا می‌کنه و فقط همون باند رو
-    بر اساس انرژی خودش فشرده می‌کنه (بدون دست‌زدن به بقیهٔ طیف)."""
+    بر اساس انرژی خودش فشرده می‌کنه (بدون دست‌زدن به بقیهٔ طیف).
+
+    بهینهٔ رم: جمع/ضرب درجا + آزادسازی زودهنگام آرایه‌های واسط."""
     hp = highpass(x, sr, lo_hz, order=4)
     band = lowpass(hp, sr, hi_hz, order=4)
+    del hp
     rest = x - band
     env = env_follow(band, sr, attack_ms, release_ms)
     over = np.maximum(lin2db(env) - np.float32(threshold_db), 0.0)
     gr = over * (1.0 - 1.0 / ratio)
     gain = db2lin(-gr).astype(np.float32)
+    del env, over, gr
     if gain.ndim == 1 and x.ndim == 2:
         gain = gain[:, None]
-    return (rest + band * gain).astype(np.float32)
+    np.multiply(band, gain, out=band)
+    np.add(rest, band, out=rest)
+    del band
+    return rest.astype(np.float32)
 
 
 def deesser(x, sr, freq=6200.0, threshold_db=-24.0, ratio=5.0,
@@ -413,6 +420,30 @@ def soft_clip(x, ceiling_db=-2.2, knee_div=2.0):
         y = np.where(over, np.sign(x) * knee, y)
     return (y[:, 0] if single else y).astype(np.float32)
 
+
+
+def tpdf_dither(x, bits=16, seed=0):
+    """دیتر TPDF (Triangular PDF) — نویز کوانتیزیشن ۱۶-بیت رو به نویز سفید
+    غیرمرتبط تبدیل می‌کنه → حذف حس «خشن/غیرصاف» در سکوت‌ها و دم‌ها.
+
+    دامنه ≈ ۱ LSB (≈ -96dBFS) — کاملاً زیر آستانهٔ شنوایی، فقط جلوی
+    آرتیفکت کوانتیزیشن رو می‌گیره (استاندارد مسترینگ دیجیتال)."""
+    rng = np.random.default_rng(seed)
+    lsb = 2.0 ** (1 - bits)   # 1 LSB برای 16-bit = 1/32768
+    n = x.shape[0]
+    # دو نویز یکنواخت مستقل → مثلثی
+    u1 = rng.uniform(-1, 1, n).astype(np.float32)
+    u2 = rng.uniform(-1, 1, n).astype(np.float32)
+    d = (u1 + u2) * (lsb * 0.5)
+    del u1, u2
+    if x.ndim == 2:
+        x[:, 0] += d
+        x[:, 1] += d
+        del d
+        return x.astype(np.float32)
+    x = x + d
+    del d
+    return x.astype(np.float32)
 
 
 def block_apply(func, x, sr, block_s=60.0, overlap_s=1.0):
@@ -946,6 +977,109 @@ def harmonize(x, sr, semitones):
                       dtype=np.float32)
 
 
+# ══════════════════ داینامیک EQ (تفکیک سازها) ══════════════════
+
+def _eq_band(x, sr, band):
+    """اعمال یک باند EQ (peak / low_shelf / high_shelf)."""
+    t = band.get("type", "peak")
+    f = float(band["freq"])
+    g = float(band.get("gain_db", 0.0))
+    q = float(band.get("q", 0.9))
+    if t == "peak":
+        return PeakFilter(cutoff_frequency_hz=f, gain_db=g, q=q)(x, sr)
+    if t == "low_shelf":
+        return LowShelfFilter(cutoff_frequency_hz=f, gain_db=g, q=q)(x, sr)
+    if t == "high_shelf":
+        return HighShelfFilter(cutoff_frequency_hz=f, gain_db=g)(x, sr)
+    return x
+
+
+def dynamic_eq(x, sr, bands):
+    """داینامیک EQ — هر باند فقط وقتی بلندتر از آستانه شد کات می‌شه (نه همیشه).
+
+    برخلاف EQ استاتیک (که همیشه بوست/کات می‌کنه)، اینجا کات فقط موقع شلوغی
+    باند اعمال می‌شه → سازهای مختلف روی هم سوار نمی‌شن و «تفکیک» واضح‌تر
+    می‌شه، بدون اینکه بدنهٔ صدا وقتی لازم نیست کم بشه.
+
+    bands: لیست dict با lo_hz, hi_hz, threshold_db, ratio, attack_ms, release_ms.
+    """
+    single = x.ndim == 1
+    y = to_stereo(x).astype(np.float32)
+    for b in bands:
+        y = _band_deess(
+            y, sr,
+            lo_hz=float(b.get("lo_hz", 300.0)),
+            hi_hz=float(b.get("hi_hz", 500.0)),
+            threshold_db=float(b.get("threshold_db", -24.0)),
+            ratio=float(b.get("ratio", 2.0)),
+            attack_ms=float(b.get("attack_ms", 8.0)),
+            release_ms=float(b.get("release_ms", 80.0)))
+    return (y[:, 0] if single else y).astype(np.float32)
+
+
+def ms_eq(x, sr, cfg):
+    """EQ جداگانه Mid/Side — مرکز واضح / اطراف باز (فراتر از پهنای صرف).
+
+    mid:  بوست/کات روی مرکز (کیک، باس، وکال اصلی) → فوکوس‌تر
+    side: بوست/کات روی کناره‌ها (سازهای اطراف، فضا) → هوا/عمق بدون شلوغی مرکز
+    """
+    if x.ndim != 2:
+        return x
+    mid = (x[:, 0] + x[:, 1]) * 0.5
+    side = (x[:, 0] - x[:, 1]) * 0.5
+    for b in (cfg.get("mid") or []):
+        mid = np.asarray(_eq_band(mid, sr, b), dtype=np.float32)
+    for b in (cfg.get("side") or []):
+        side = np.asarray(_eq_band(side, sr, b), dtype=np.float32)
+    out = np.empty_like(x)
+    np.add(mid, side, out=out[:, 0])      # L = mid + side (درجا)
+    np.subtract(mid, side, out=out[:, 1])  # R = mid - side (درجا)
+    return out.astype(np.float32)
+
+
+def transient_shaper(x, sr, low_punch_db=1.2, split_hz=2500.0):
+    """Transient Shaper جدا از کمپرسور — شکل ترنزینت رو تغییر می‌ده بدون
+    بلندترکردن کل حجم.
+
+    باند لو: تقویت اتک (پانچ کیک/باس) — فقط لبهٔ ترنزینت بلند می‌شه،
+             نه کل باس → پانچ واضح‌تر بدون له‌شدگی.
+    باند های: نرم‌کردن sustain (پایداری های‌هت/سنج) → شفافیت بیشتر، کمتر انبوه.
+    """
+    single = x.ndim == 1
+    y = to_stereo(x).astype(np.float32)
+
+    low = lowpass(y, sr, split_hz)
+    high = y - low
+
+    # ── باند لو: پانچ اتک (تفاوت پوش سریع/کند = موقع ترنزینت) ──
+    e_fast = env_follow(low, sr, attack_ms=2.0, release_ms=25.0)
+    e_slow = env_follow(low, sr, attack_ms=30.0, release_ms=160.0)
+    trans = e_fast / np.maximum(e_slow, 1e-4)
+    amt = float(db2lin(low_punch_db) - 1.0)
+    punch = (1.0 + amt * np.clip(trans - 1.0, 0.0, 4.0) / 4.0).astype(np.float32)
+    del e_fast, e_slow, trans
+    punch = np.clip(punch, 1.0, float(db2lin(low_punch_db)))
+    if y.ndim == 2:
+        punch = punch[:, None]
+    np.multiply(low, punch, out=low)          # درجا
+    del punch
+
+    # ── باند های: کم‌کردن sustain با پوش کند (فقط بخش پایداری) ──
+    e_hi = env_follow(high, sr, attack_ms=12.0, release_ms=140.0)
+    e_hi_db = lin2db(np.maximum(e_hi, 1e-6))
+    over = np.maximum(e_hi_db - np.float32(-30.0), 0.0)
+    gain = db2lin(-over * 0.4).astype(np.float32)   # زانوی نرم، کات ملایم
+    del e_hi, e_hi_db, over
+    if y.ndim == 2:
+        gain = gain[:, None]
+    np.multiply(high, gain, out=high)         # درجا
+    del gain
+
+    np.add(low, high, out=low)                # درجا
+    del high
+    return (low[:, 0] if single else low).astype(np.float32)
+
+
 # ══════════════════ زنجیره مستر ══════════════════
 
 def master_chain(x, sr, m):
@@ -981,6 +1115,12 @@ def master_chain(x, sr, m):
                        q=dip.get("q", 1.2))(y, sr)
         rep.append(f"اصلاح میدرنج مستر ({dip['gain_db']:+g}dB @ {dip['freq']}Hz)")
 
+    # داینامیک EQ — کات فقط موقع شلوغی باند (تفکیک سازها، نه کات همیشگی)
+    deq = m.get("dyn_eq")
+    if deq:
+        y = dynamic_eq(y, sr, deq)
+        rep.append("داینامیک EQ (میدرنج گل‌آلود + حضور) — تفکیک سازها")
+
     bc = m.get("bus_comp")
     if bc:
         y = Compressor(threshold_db=bc["threshold_db"], ratio=bc["ratio"],
@@ -996,6 +1136,15 @@ def master_chain(x, sr, m):
             crossover_high=float(mb.get("crossover_high", 3000.0)),
             comp_low=mb.get("low"), comp_mid=mb.get("mid"), comp_high=mb.get("high"))
         rep.append("مولتی‌باند (Low/Mid/High) — پانچ باس و وضوح سازها")
+
+    # ترنزینت‌شیپر — شکل ترنزینت جدا از کمپرسور (پانچ کیک + شفافیت های‌هت)
+    tr = m.get("transient")
+    if tr:
+        y = transient_shaper(
+            y, sr,
+            low_punch_db=float(tr.get("low_punch_db", 1.2)),
+            split_hz=float(tr.get("split_hz", 2500.0)))
+        rep.append("ترنزینت‌شیپر — پانچ کیک و شفافیت های‌هت")
 
     # کمپرسور موازی باس مستر (NY) — پانچ و ضخامت بدون له شدن ترنزینت‌ها
     bp = m.get("bus_parallel")
@@ -1052,6 +1201,12 @@ def master_chain(x, sr, m):
         y = width_ms(y, w)
         rep.append(f"پهنای استریو ({int(w * 100)}٪)")
 
+    # EQ جداگانه Mid/Side — مرکز واضح / اطراف باز (تفکیک تن رنگ)
+    mse = m.get("ms_eq")
+    if mse:
+        y = ms_eq(y, sr, mse)
+        rep.append("Mid/Side EQ — فوکوس مرکز + هوای اطراف")
+
     # باس مونو — متمرکزکردن زیر بم (سازگاری فاز + باس تمیز)
     bm = m.get("bass_mono")
     if bm:
@@ -1075,17 +1230,16 @@ def master_chain(x, sr, m):
         y = soft_clip(y, ceiling_db=clip_db)
         rep.append(f"کلیپر نرم (گرد کردن پیک‌ها @ {clip_db:g}dB)")
 
+    # ── رساندن به LUFS هدف با گین پلکانی + لیمیتر (بدون کلیپر داخل حلقه) ──
     rel = m.get("limiter_release_ms", 120)
-    for _ in range(4):
+    for _ in range(3):
         l = integrated_lufs(y, sr)
         if l <= -69.0:
             break
         need = target - l
         if need <= 0.25:
             break
-        y = y * np.float32(db2lin(min(need * 0.9, 6.0)))
-        if clip_db is not None:
-            y = soft_clip(y, ceiling_db=clip_db)
+        y = y * np.float32(db2lin(min(need * 0.85, 5.0)))
         y = Limiter(threshold_db=ceiling, release_ms=rel)(y, sr)
 
     # تصحیح نهایی: لیمیتر pedalboard گین جبرانی می‌ذاره و ممکنه از هدف رد کنیم
@@ -1098,6 +1252,11 @@ def master_chain(x, sr, m):
     if over > 0:
         y = y * np.float32(db2lin(-over))
     rep.append(f"بلندی نهایی → {target:g} LUFS (سقف {ceiling:g}dB، چند گذر)")
+
+    # دیتر TPDF — حذف آرتیفکت کوانتیزیشن ۱۶-بیت (استاندارد مسترینگ)
+    if m.get("dither", False):
+        y = tpdf_dither(y, bits=16)
+        rep.append("دیتر TPDF (نویز کوانتیزیشن → سفید غیرمرتبط)")
     return y.astype(np.float32), rep
 
 # ══════════════════ میکس وکال + موزیک ══════════════════

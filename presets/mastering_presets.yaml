@@ -317,11 +317,6 @@ presets:
   master:
     working_lufs: -18
     hpf_hz: 24
-    bus_comp:
-      threshold_db: -15
-      ratio: 1.5
-      attack_ms: 30
-      release_ms: 300
     eq_low_shelf:
       freq: 85
       gain_db: 0.6
@@ -333,7 +328,7 @@ presets:
       drive_db: 0.3
       mix: 0.15
     clip:
-      ceiling_db: -1.5
+      ceiling_db: -1.0
     lufs: -11.0
     ceiling: -1.5
     bus_parallel:
@@ -372,6 +367,33 @@ presets:
       threshold_db: -55.0
       ratio: 3.0
       release_ms: 180.0
+    dyn_eq:
+    - lo_hz: 280
+      hi_hz: 550
+      threshold_db: -24
+      ratio: 2.0
+      attack_ms: 8
+      release_ms: 80
+    - lo_hz: 2000
+      hi_hz: 4000
+      threshold_db: -22
+      ratio: 1.8
+      attack_ms: 5
+      release_ms: 60
+    transient:
+      low_punch_db: 1.3
+      split_hz: 2500
+    ms_eq:
+      mid:
+      - type: peak
+        freq: 350
+        gain_db: -1.0
+        q: 0.9
+      side:
+      - type: high_shelf
+        freq: 7000
+        gain_db: 1.2
+    dither: true
 - id: acoustic_natural
   name: 🎸 آکوستیک طبیعی
   desc: شفاف و دست‌نخورده با جلای ملایم — کمترین فشرده‌سازی، برای آکوستیک و لایو
@@ -682,11 +704,6 @@ presets:
       freq: 320
       gain_db: -2.5
       q: 0.8
-    bus_comp:
-      threshold_db: -14
-      ratio: 1.7
-      attack_ms: 20
-      release_ms: 240
     eq_low_shelf:
       freq: 85
       gain_db: 0.6
@@ -698,7 +715,7 @@ presets:
       drive_db: 0.3
       mix: 0.15
     clip:
-      ceiling_db: -1.5
+      ceiling_db: -1.0
     lufs: -11.0
     ceiling: -1.5
     eq_presence:
@@ -729,6 +746,33 @@ presets:
       threshold_db: -55.0
       ratio: 3.0
       release_ms: 180.0
+    dyn_eq:
+    - lo_hz: 280
+      hi_hz: 550
+      threshold_db: -24
+      ratio: 2.0
+      attack_ms: 8
+      release_ms: 80
+    - lo_hz: 2000
+      hi_hz: 4000
+      threshold_db: -22
+      ratio: 1.8
+      attack_ms: 5
+      release_ms: 60
+    transient:
+      low_punch_db: 1.3
+      split_hz: 2500
+    ms_eq:
+      mid:
+      - type: peak
+        freq: 350
+        gain_db: -1.0
+        q: 0.9
+      side:
+      - type: high_shelf
+        freq: 7000
+        gain_db: 1.2
+    dither: true
 - id: viva
   name: 🌟 ویوا
   desc: وکال گرم، پرقدرت و براق + مسترینگ برنده — اتوتیون ملایم، حضور و درخشش بالا
@@ -842,11 +886,6 @@ presets:
       freq: 320
       gain_db: -2.5
       q: 0.8
-    bus_comp: &id001
-      threshold_db: -14
-      ratio: 1.7
-      attack_ms: 20
-      release_ms: 240
     eq_low_shelf:
       freq: 85
       gain_db: 0.6
@@ -858,7 +897,7 @@ presets:
       drive_db: 0.3
       mix: 0.15
     clip:
-      ceiling_db: -1.5
+      ceiling_db: -1.0
     lufs: -11.0
     ceiling: -1.5
     eq_presence:
@@ -889,6 +928,33 @@ presets:
       threshold_db: -55.0
       ratio: 3.0
       release_ms: 180.0
+    dyn_eq:
+    - lo_hz: 280
+      hi_hz: 550
+      threshold_db: -24
+      ratio: 2.0
+      attack_ms: 8
+      release_ms: 80
+    - lo_hz: 2000
+      hi_hz: 4000
+      threshold_db: -22
+      ratio: 1.8
+      attack_ms: 5
+      release_ms: 60
+    transient:
+      low_punch_db: 1.3
+      split_hz: 2500
+    ms_eq:
+      mid:
+      - type: peak
+        freq: 350
+        gain_db: -1.0
+        q: 0.9
+      side:
+      - type: high_shelf
+        freq: 7000
+        gain_db: 1.2
+    dither: true
 - id: viva_bedler
   name: 🎵 ویوا بدلر
   desc: مسترینگ بیت/آهنگ کامل — همون تنظیم برندهٔ دیشب، بدون تغییر تُنال
@@ -1002,7 +1068,6 @@ presets:
       freq: 320
       gain_db: -2.5
       q: 0.8
-    bus_comp: *id001
     eq_low_shelf:
       freq: 85
       gain_db: 0.6
@@ -1014,7 +1079,7 @@ presets:
       drive_db: 0.3
       mix: 0.15
     clip:
-      ceiling_db: -1.5
+      ceiling_db: -1.0
     lufs: -11.0
     ceiling: -1.5
     eq_presence:
@@ -1045,6 +1110,33 @@ presets:
       threshold_db: -55.0
       ratio: 3.0
       release_ms: 180.0
+    dyn_eq:
+    - lo_hz: 280
+      hi_hz: 550
+      threshold_db: -24
+      ratio: 2.0
+      attack_ms: 8
+      release_ms: 80
+    - lo_hz: 2000
+      hi_hz: 4000
+      threshold_db: -22
+      ratio: 1.8
+      attack_ms: 5
+      release_ms: 60
+    transient:
+      low_punch_db: 1.3
+      split_hz: 2500
+    ms_eq:
+      mid:
+      - type: peak
+        freq: 350
+        gain_db: -1.0
+        q: 0.9
+      side:
+      - type: high_shelf
+        freq: 7000
+        gain_db: 1.2
+    dither: true
 - id: vintage_tape
   name: 📼 وینتج تیپ
   desc: صدای نواری گرم دهه ۷۰ — اشباع زیاد و جلای گرمِ محدود (کاراکتر تیپ حفظ می‌شه)
