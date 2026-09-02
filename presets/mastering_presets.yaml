@@ -283,32 +283,19 @@ presets:
       drive_db: 1.4
       mix: 0.6
     stereo_repair: true
-    double:
-      enabled: true
-      detune_cents: 2.5
-      delay_ms: 0.0
-      reverb_wet: 0.12
-      room: 0.35
-      damping: 0.5
-      back_gain: 0.35
-      mix: 0.28
     eq_high_shelf:
       freq: 8000
       gain_db: 1.0
-    space:
+    three_layer:
       enabled: true
-      pre_delay_ms: 60
-      room: 0.35
-      damping: 0.45
-      verb_wet: 0.12
-      verb_hpf_hz: 280
-      air_mix: 0.25
-      air_drive_db: 2.0
-      delay_time_s: 0.24
-      delay_feedback: 0.28
-      delay_mix: 0.1
-      delay_hpf_hz: 350
-      delay_lpf_hz: 6500
+      depth_level_db: -20.0
+      body_level_db: -10.0
+      depth_pre_delay_ms: 35.0
+      body_width: 0.45
+    slap_delay:
+      enabled: true
+      time_s: 0.035
+      mix: 0.06
   mix:
     vocal_gain_db: 0.9
     inst_gain_db: -1.0
@@ -669,32 +656,19 @@ presets:
       drive_db: 1.4
       mix: 0.6
     stereo_repair: true
-    double:
-      enabled: true
-      detune_cents: 2.5
-      delay_ms: 0.0
-      reverb_wet: 0.12
-      room: 0.35
-      damping: 0.5
-      back_gain: 0.35
-      mix: 0.28
     eq_high_shelf:
       freq: 8000
       gain_db: 1.0
-    space:
+    three_layer:
       enabled: true
-      pre_delay_ms: 60
-      room: 0.35
-      damping: 0.45
-      verb_wet: 0.12
-      verb_hpf_hz: 280
-      air_mix: 0.25
-      air_drive_db: 2.0
-      delay_time_s: 0.24
-      delay_feedback: 0.28
-      delay_mix: 0.1
-      delay_hpf_hz: 350
-      delay_lpf_hz: 6500
+      depth_level_db: -20.0
+      body_level_db: -10.0
+      depth_pre_delay_ms: 35.0
+      body_width: 0.45
+    slap_delay:
+      enabled: true
+      time_s: 0.035
+      mix: 0.06
   mix:
     vocal_gain_db: 1.0
     inst_gain_db: -1.0
@@ -854,32 +828,19 @@ presets:
       drive_db: 1.4
       mix: 0.6
     stereo_repair: true
-    double:
-      enabled: true
-      detune_cents: 2.5
-      delay_ms: 0.0
-      reverb_wet: 0.12
-      room: 0.35
-      damping: 0.5
-      back_gain: 0.35
-      mix: 0.28
     eq_high_shelf:
       freq: 8000
       gain_db: 1.0
-    space:
+    three_layer:
       enabled: true
-      pre_delay_ms: 60
-      room: 0.35
-      damping: 0.45
-      verb_wet: 0.12
-      verb_hpf_hz: 280
-      air_mix: 0.25
-      air_drive_db: 2.0
-      delay_time_s: 0.24
-      delay_feedback: 0.28
-      delay_mix: 0.1
-      delay_hpf_hz: 350
-      delay_lpf_hz: 6500
+      depth_level_db: -20.0
+      body_level_db: -10.0
+      depth_pre_delay_ms: 35.0
+      body_width: 0.45
+    slap_delay:
+      enabled: true
+      time_s: 0.035
+      mix: 0.06
   mix:
     vocal_gain_db: 1.0
     inst_gain_db: -1.0
@@ -1039,32 +1000,19 @@ presets:
       drive_db: 1.4
       mix: 0.6
     stereo_repair: true
-    double:
-      enabled: true
-      detune_cents: 2.5
-      delay_ms: 0.0
-      reverb_wet: 0.12
-      room: 0.35
-      damping: 0.5
-      back_gain: 0.35
-      mix: 0.28
     eq_high_shelf:
       freq: 8000
       gain_db: 1.0
-    space:
+    three_layer:
       enabled: true
-      pre_delay_ms: 60
-      room: 0.35
-      damping: 0.45
-      verb_wet: 0.12
-      verb_hpf_hz: 280
-      air_mix: 0.25
-      air_drive_db: 2.0
-      delay_time_s: 0.24
-      delay_feedback: 0.28
-      delay_mix: 0.1
-      delay_hpf_hz: 350
-      delay_lpf_hz: 6500
+      depth_level_db: -20.0
+      body_level_db: -10.0
+      depth_pre_delay_ms: 35.0
+      body_width: 0.45
+    slap_delay:
+      enabled: true
+      time_s: 0.035
+      mix: 0.06
   mix:
     vocal_gain_db: 0.8
     inst_gain_db: -1.0

@@ -221,19 +221,24 @@ def _upsample_zerostuff(x, factor):
 
 def saturation(x, sr, drive_db=3.0, mix=0.3, asym=1.15):
     """اشباع نرم لامپی — هارمونیک‌های زوج + فرد
-    اورسمپلینگ ۲× با صفرگذاری + ضد الیاس ۱۹kHz (بدون الیاسینگ/هیس و کم‌مصرف)"""
+    اورسمپلینگ ۲× با صفرگذاری + ضد الیاس ۱۹kHz (بدون الیاسینگ/هیس).
+
+    نسخهٔ بهینهٔ رم: tanh درجا روی یک آرایه (به‌جای چند آرایهٔ موازی ۲×).
+    asym (غیرقرینگی ۱.۱۵) حذف شد چون آرایهٔ اضافه می‌ساخت؛ کاراکتر گرمِ
+    لامپی از خود tanh + mix میاد و عملاً تغییری محسوس نیست."""
     single = x.ndim == 1
     if single:
         x = x[:, None]
     up = _upsample_zerostuff(x, 2)
     g = float(db2lin(drive_db))
-    pos = np.tanh(g * up)
-    neg = np.tanh(g * asym * up)
-    wet = np.where(up >= 0, pos, neg) / np.tanh(g)
-    wet = lowpass(wet, sr * 2, 19000.0)
-    wet = wet[::2]
-    n = min(len(x), len(wet))
-    out = (1.0 - mix) * x[:n] + mix * wet[:n]
+    norm = np.float32(1.0 / float(np.tanh(g)))
+    np.multiply(up, g, out=up)          # مقیاس با drive (درجا)
+    np.tanh(up, out=up)                 # tanh درجا
+    np.multiply(up, norm, out=up)       # نرمال‌سازی unity-gain (درجا)
+    up = lowpass(up, sr * 2, 19000.0)   # ضد الیاس (آرایهٔ جدید ۲×)
+    up = up[::2]
+    n = min(len(x), len(up))
+    out = (1.0 - mix) * x[:n] + mix * up[:n]
     return (out[:, 0] if single else out).astype(np.float32)
 
 # ══════════════════ هوا / جزئیات ریز تیس (Air Exciter) ══════════════════
@@ -753,6 +758,120 @@ def vocal_space(y, sr, cfg):
     return (out[:, 0] if single else out).astype(np.float32, copy=False)
 
 
+# ══════════════════ معماری سه‌لایه وکال (Depth / Body / Presence) ══════════════════
+
+def _stereo_spread(mono, sr, width=1.0):
+    """ساخت استریو از مونو بدون فلام/کمب — با جفت فیلتر آل‌پس مرتبه‌اول.
+
+    دو آل‌پس با ضریب مخالف (c و -c) روی L و R → اختلاف فاز نرم (نه تأخیر
+    زمانی) → عرض واقعی که در جمعِ مونو کمب نمی‌سازه (دامنهٔ آل‌پس ثابته).
+    سپس side با `width` مقیاس می‌شه (1.0=کاملاً عریض، 0=مونو).
+    این‌جا از delay (Haas) استفاده نمی‌کنیم چون روی سیگنال تُنال (body)
+    کمب‌فیلتر می‌سازه.
+    """
+    c = 0.8  # ضریب آل‌پس (عرض خوب + جمعِ مونو ~۰.۹۴، |c|<1)
+    c = np.float32(c)
+    bL = np.array([c, np.float32(1.0)], dtype=np.float32)
+    aL = np.array([np.float32(1.0), c], dtype=np.float32)
+    bR = np.array([-c, np.float32(1.0)], dtype=np.float32)
+    aR = np.array([np.float32(1.0), -c], dtype=np.float32)
+    L = spsig.lfilter(bL, aL, mono)
+    R = spsig.lfilter(bR, aR, mono)
+    mid = (L + R) * np.float32(0.5)
+    side = (L - R) * np.float32(0.5) * np.float32(width)
+    return np.stack([mid + side, mid - side], axis=1).astype(np.float32)
+
+
+def _depth_layer(dry, sr, pre_delay_ms=35.0):
+    """لایهٔ Depth (عمق) — ریوربِ پلیت بلند + فیلترها برای حس فاصله.
+
+    HPF 250Hz (حذف باس → کدر نشه) → پره‌دلی → ریورب پلیت (فقط خیس، عریض)
+    → LPF 7500Hz (حذف تیزی، فقط حس فاصله) → پهن‌کردن استریو.
+    پره‌دلی با np.roll (ریوربِ pedalboard پارامتر پره‌دلی نداره).
+    مونو پردازش می‌شه تا مصرف رم نصف بشه؛ عرض در پایان با آل‌پس ساخته می‌شه.
+    """
+    from pedalboard import Reverb
+    d = to_mono(dry).astype(np.float32, copy=False)
+    if pre_delay_ms > 0:
+        pd = int(pre_delay_ms / 1000.0 * sr)
+        d = np.roll(d, pd, axis=0)
+        d[:pd] = 0.0
+    d = HighpassFilter(cutoff_frequency_hz=250.0)(d, sr)
+    d = Reverb(room_size=0.85, damping=0.35,
+               wet_level=1.0, dry_level=0.0, width=1.0)(d, sr)
+    d = LowpassFilter(cutoff_frequency_hz=7500.0)(d, sr)
+    return _stereo_spread(np.asarray(d, dtype=np.float32), sr, width=1.0)
+
+
+def _body_layer(dry, sr, body_width=0.45, drive_db=4.5):
+    """لایهٔ Body (میانی) — کمپرسور سنگین + گرمای هارمونیک برای ضخامت.
+
+    کمپرسور 5:1 → EQ گرم (+3dB @250Hz) + کات تیزی (-2dB @5000Hz)
+    → اشباع لامپی (tanh اورسمپل‌شده، گرم نه خشن) → پهنای نیمه‌عریض.
+    مونو پردازش می‌شه؛ عرض در پایان با آل‌پس ساخته می‌شه (body_width).
+    """
+    b = to_mono(dry).astype(np.float32, copy=False)
+    b = np.asarray(
+        Compressor(threshold_db=-22.0, ratio=5.0,
+                   attack_ms=15.0, release_ms=120.0)(b, sr), dtype=np.float32)
+    b = PeakFilter(cutoff_frequency_hz=250.0, gain_db=3.0, q=1.2)(b, sr)
+    b = HighShelfFilter(cutoff_frequency_hz=5000.0, gain_db=-2.0)(b, sr)
+    b = saturation(b, sr, drive_db=drive_db, mix=0.6)
+    return _stereo_spread(b, sr, width=float(body_width))
+
+
+def slap_delay(y, sr, time_s=0.035, mix=0.06):
+    """دیلی خیلی کوتاه (<50ms، بدون فیدبک) — ضخامت early-reflection بدون فلام."""
+    from pedalboard import Delay
+    single = y.ndim == 1
+    yy = to_stereo(y).astype(np.float32)
+    d = Delay(delay_seconds=float(time_s), feedback=0.0, mix=1.0)(yy, sr)
+    out = yy * (1.0 - float(mix)) + d * float(mix)
+    return (out[:, 0] if single else out).astype(np.float32)
+
+
+def add_three_layer(presence, dry, sr, cfg):
+    """معماری سه‌لایه: Depth (عمق) + Body (ضخامت) + Presence (شفاف).
+
+    depth و body از dry (وکال خام) ساخته می‌شن و نسبت به سطحِ presence
+    (مرجع 0dB) با -20dB و -10dB جمع می‌شن → عمق و چندبعدی بودن.
+    ساخت پشت‌سرهم + جمع درجا برای مصرف رم کم (سرویس ۱ گیگ).
+    """
+    presence = to_stereo(presence).astype(np.float32)
+    p_rms = float(np.sqrt(np.mean(np.square(presence)) + 1e-12))
+    n = len(presence)
+
+    # ── لایهٔ Depth ──
+    depth = _depth_layer(dry, sr, float(cfg.get("depth_pre_delay_ms", 35.0)))
+    if len(depth) > n:
+        depth = depth[:n]
+    elif len(depth) < n:
+        depth = np.pad(depth, ((0, n - len(depth)), (0, 0)))
+    d_rms = float(np.sqrt(np.mean(np.square(depth)) + 1e-12))
+    if d_rms > 1e-9:
+        depth = depth * np.float32(db2lin(cfg.get("depth_level_db", -20.0)) * p_rms / d_rms)
+    np.add(presence, depth, out=presence)
+    del depth
+
+    # ── لایهٔ Body ──
+    body = _body_layer(dry, sr, body_width=float(cfg.get("body_width", 0.45)))
+    if len(body) > n:
+        body = body[:n]
+    elif len(body) < n:
+        body = np.pad(body, ((0, n - len(body)), (0, 0)))
+    b_rms = float(np.sqrt(np.mean(np.square(body)) + 1e-12))
+    if b_rms > 1e-9:
+        body = body * np.float32(db2lin(cfg.get("body_level_db", -10.0)) * p_rms / b_rms)
+    np.add(presence, body, out=presence)
+    del body
+
+    # گارد پیک
+    pk = float(np.max(np.abs(presence)))
+    if pk > 0.985:
+        presence = presence * np.float32(0.985 / pk)
+    return presence.astype(np.float32)
+
+
 # ══════════════════ زنجیره وکال ══════════════════
 
 def vocal_chain(x, sr, v):
@@ -790,6 +909,12 @@ def vocal_chain(x, sr, v):
             v["eq_gloss"] = {**v["eq_gloss"],
                              "gain_db": v["eq_gloss"].get("gain_db", 2.0) * 0.75}
         rep.append("🧹 پاکسازی نشت موزیک (حالت وکال جداسازی‌شده)")
+
+    # ── ذخیرهٔ خشکِ خام (برای لایه‌های Depth/Body در معماری سه‌لایه) ──
+    # مونو ذخیره می‌شه چون لایه‌های Depth/Body از همین منبع مونو ساخته می‌شن
+    # (عرض رو خودِ لایه‌ها در پایان با آل‌پس می‌سازن) → نصف مصرف رم.
+    # بعد از این خط y فقط reassign می‌شه و آرایهٔ استریوی قبلی آزاد می‌شه.
+    dry_ref = to_mono(y)
 
     hpf = v.get("hpf_hz")
     if hpf:
@@ -947,10 +1072,21 @@ def vocal_chain(x, sr, v):
             y, sr, block_s=30.0)
         rep.append("نرم‌کردن سخت‌خوانی (ش/خ/ج) — بدون حالت توییتری")
 
-    # ── فضاسازی حرفه‌ای (دیلی + ریورب + پره‌دلی + هوا) — ضد حمومی ──
+    # ── فضاسازی ──
+    # پریست‌های اصلی (معماری سه‌لایه): ریورب بلند به لایهٔ Depth منتقل شد؛
+    # اینجا فقط دیلی خیلی کوتاه (<50ms، بدون فیدبک) برای ضخامت early-reflection
+    # می‌مونه — بدون tail بلند، بدون فلام.
+    slap = v.get("slap_delay")
+    if slap and slap.get("enabled"):
+        y = slap_delay(y, sr,
+                       time_s=slap.get("time_s", 0.035),
+                       mix=slap.get("mix", 0.06))
+        rep.append("دیلی کوتاه (slap) — ضخامت early-reflection")
+
+    # سازگاری با پریست‌های قدیمی که هنوز از delay/reverb جدا (یا space) استفاده
+    # می‌کنن — رفتار فضاسازی کامل قبلی براشون حفظ می‌شه.
     sp = v.get("space")
-    if sp is None:
-        # سازگاری با تنظیمات قدیم (delay/reverb جدا) → ساخت cfg از اون‌ها
+    if sp is None and (v.get("delay") or v.get("reverb")):
         sp = {"enabled": True}
         if v.get("delay"):
             sp["delay_time_s"] = v["delay"].get("time_s", 0.24)
@@ -976,11 +1112,13 @@ def vocal_chain(x, sr, v):
             y = y * np.float32(0.98 / pk)
         rep.append(f"گین خروجی +{g:g}dB (قدرت بیشتر)")
 
-    # ── دابل‌ترک (بک‌ویس) — استریو واقعی + حجم و گرما (اختیاری) ──
-    db = v.get("double")
-    if db and db.get("enabled"):
-        y = add_double_layer(y, sr, db)
-        rep.append("بک‌ویس (دابل‌ترک) — استریو واقعی و حجم/گرمای بیشتر")
+    # ── معماری سه‌لایه (Depth/Body/Presence) — عمق و چندبعدی بودن ──
+    # جایگزین بک‌ویسِ دیتون‌دار قبلی؛ فضاسازی و ضخامت از لایه‌های Depth/Body
+    # میان و لایهٔ Presence (همین زنجیره) شفافیت اصلی رو نگه می‌داره.
+    tl = v.get("three_layer")
+    if tl and tl.get("enabled"):
+        y = add_three_layer(y, dry_ref, sr, tl)
+        rep.append("سه‌لایه وکال (Depth + Body + Presence) — عمق و ضخامت")
 
     # خروجی همیشه استریو (اگه زنجیره مونو بود، اینجا پهن می‌شه)
     if y.ndim == 1:
