@@ -1228,9 +1228,6 @@ def master_chain(x, sr, m):
     target = m.get("lufs", -12.0)
 
     # ── بلندیِ بالا بدون لهیدگی: کلیپر نرم + لیمیتر در چند گذر کوتاه ──
-    # نسخهٔ قدیم همهٔ فشار رو یک‌جا به یک لیمیتر می‌داد (≈۹dB GR = مچاله).
-    # حالا: هر گذر حداکثر ۶dB گین می‌ده، پیک‌ها قبل از لیمیتر توسط کلیپر
-    # نرم گرد می‌شن → گین‌ریداکشن لیمیتر کم می‌مونه و ترنزینت‌ها زنده‌ان.
     clip = m.get("clip")
     clip_db = None
     if isinstance(clip, dict):
@@ -1241,25 +1238,31 @@ def master_chain(x, sr, m):
         y = soft_clip(y, ceiling_db=clip_db)
         rep.append(f"کلیپر نرم (گرد کردن پیک‌ها @ {clip_db:g}dB)")
 
-    # ── رساندن به LUFS هدف با گین پلکانی + لیمیتر (بدون کلیپر داخل حلقه) ──
+    # ── رساندن به LUFS هدف با گین پلکانی + لیمیتر ──
+    # ⚠️ لیمیتر pedalboard «دو کمپرسور + کلیپر سخت در 0dBFS» داره؛ یعنی خروجی
+    # همیشه سقف 0dBFS (نه ceiling). پس حلقه تا (target - ceiling) بالا می‌بره
+    # و بعد با گین ceiling پیک نهایی به ceiling و بلندی به target می‌رسه.
+    # آستانهٔ لیمیتر باید از ceiling پایین‌تر باشه (این‌جا ceiling - 1.5dB) تا
+    # کمپرسورها کرست رو به‌اندازهٔ کافی کم کنن و به بلندی هدف برسیم.
     rel = m.get("limiter_release_ms", 120)
-    for _ in range(3):
+    lim_thr = ceiling - 2.0          # آستانهٔ فشرده‌سازی لیمیتر (زیر سقف نهایی)
+    loop_target = target - ceiling   # بلندیِ هدف در سقف 0dBFS (قبل از گین ceiling)
+    for _ in range(5):
         l = integrated_lufs(y, sr)
         if l <= -69.0:
             break
-        need = target - l
+        need = loop_target - l
         if need <= 0.25:
             break
         y = y * np.float32(db2lin(min(need * 0.85, 5.0)))
-        y = Limiter(threshold_db=ceiling, release_ms=rel)(y, sr)
+        y = Limiter(threshold_db=lim_thr, release_ms=rel)(y, sr)
 
-    # تصحیح نهایی: لیمیتر pedalboard گین جبرانی می‌ذاره و ممکنه از هدف رد کنیم
-    l = integrated_lufs(y, sr)
-    if -69.0 < l and l > target + 0.25:
-        y = y * np.float32(db2lin(target - l))
+    # گین نهایی: پیک → ceiling (بلندی → target). لیمیتر کلیپر سخت در 0dBFS
+    # گذاشته، پس ضرب در ceiling دقیقاً پیک رو به ceiling می‌رسونه (بدون overshoot).
+    y = y * np.float32(db2lin(ceiling))
 
-    # سقف نهایی دقیق (حاشیهٔ ایمنی برای اورشوت انکود MP3)
-    over = float(lin2db(np.max(np.abs(y)))) - (ceiling - 0.5)
+    # حاشیهٔ ایمنی کوچک برای اورشوت انکود MP3 (فقط اگه چیزی رد شده باشه)
+    over = float(lin2db(np.max(np.abs(y)))) - (ceiling - 0.2)
     if over > 0:
         y = y * np.float32(db2lin(-over))
     rep.append(f"بلندی نهایی → {target:g} LUFS (سقف {ceiling:g}dB، چند گذر)")

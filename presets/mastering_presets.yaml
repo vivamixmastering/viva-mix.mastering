@@ -329,7 +329,7 @@ presets:
       mix: 0.15
     clip:
       ceiling_db: -1.0
-    lufs: -11.0
+    lufs: -8.5
     ceiling: -1.5
     bus_parallel:
       threshold_db: -32.0
@@ -716,7 +716,7 @@ presets:
       mix: 0.15
     clip:
       ceiling_db: -1.0
-    lufs: -11.0
+    lufs: -8.5
     ceiling: -1.5
     eq_presence:
       freq: 3500
@@ -898,7 +898,7 @@ presets:
       mix: 0.15
     clip:
       ceiling_db: -1.0
-    lufs: -11.0
+    lufs: -8.5
     ceiling: -1.5
     eq_presence:
       freq: 3500
@@ -1080,7 +1080,7 @@ presets:
       mix: 0.15
     clip:
       ceiling_db: -1.0
-    lufs: -11.0
+    lufs: -8.5
     ceiling: -1.5
     eq_presence:
       freq: 3500
