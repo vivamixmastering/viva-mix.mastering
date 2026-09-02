@@ -79,6 +79,17 @@ def load_audio(path, sr=SR):
     data, s = sf.read(p, dtype="float32", always_2d=True)
     if s != sr:
         data = resample(data, s, sr)
+    # گارد ورودی degenerate: فایل خالی یا خیلی کوتاه → پیام واضح به‌جای کرش
+    # (صفر/یک نمونه باعث خطای reshape در sosfilt و خطای channel-layout
+    # در فیلترهای pedalboard می‌شد؛ حداقل ۵۱۲ نمونه = ~۱۲ms کافیه)
+    if data.shape[0] < 512:
+        raise ValueError(
+            "فایل صوتی خالی یا خیلی کوتاه است (کمتر از ۱۲ میلی‌ثانیه) — "
+            "لطفاً یک فایل صوتی واقعی ارسال کنید.")
+    # ورودی NaN/Inf (فایل خراب) → صفر می‌کنیم تا کل زنجیره NaN نشه
+    if not np.isfinite(data).all():
+        log.warning("ورودی دارای NaN/Inf — پاک‌سازی شد")
+        data = np.nan_to_num(data, nan=0.0, posinf=0.0, neginf=0.0).astype(np.float32)
     return data.astype(np.float32), sr
 
 def save_wav(path, data, sr=SR, subtype="PCM_16"):
