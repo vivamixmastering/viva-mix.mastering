@@ -245,11 +245,11 @@ presets:
       q: 1.0
     eq_presence:
       freq: 2500
-      gain_db: 1.2
+      gain_db: 1.5
       q: 1.0
     eq_gloss:
       freq: 9500
-      gain_db: 1.7
+      gain_db: 1.9
       q: 0.9
     eq_air_shelf:
       freq: 13500
@@ -259,7 +259,7 @@ presets:
       ratio: 6.0
       freq: 7300
     warmth:
-      drive_db: 2.6
+      drive_db: 2.9
       mix: 0.55
     air:
       freq: 12000
@@ -275,9 +275,9 @@ presets:
       ratio: 3.5
     eq_warm:
       freq: 240
-      gain_db: 1.6
+      gain_db: 1.9
       q: 0.8
-    gain_db: 2.8
+    gain_db: 3.2
     silk:
       freq: 6000
       drive_db: 1.1
@@ -324,10 +324,10 @@ presets:
       release_ms: 300
     eq_low_shelf:
       freq: 85
-      gain_db: 0.3
+      gain_db: 1.0
     eq_high_shelf:
       freq: 10000
-      gain_db: 1.2
+      gain_db: 1.0
     width: 1.08
     sat:
       drive_db: 0.5
@@ -342,12 +342,12 @@ presets:
       mix: 0.18
     eq_dip:
       freq: 300
-      gain_db: -2.5
-      q: 1.0
+      gain_db: -3.5
+      q: 1.2
     eq_presence:
       freq: 3500
-      gain_db: 0.5
-      q: 1.4
+      gain_db: 0.8
+      q: 1.6
     multiband:
       crossover_low: 150
       crossover_high: 3000
@@ -602,11 +602,11 @@ presets:
       q: 1.0
     eq_presence:
       freq: 2500
-      gain_db: 1.2
+      gain_db: 1.5
       q: 1.0
     eq_gloss:
       freq: 9500
-      gain_db: 1.7
+      gain_db: 1.9
       q: 0.9
     eq_air_shelf:
       freq: 13500
@@ -616,7 +616,7 @@ presets:
       ratio: 6.0
       freq: 7300
     warmth:
-      drive_db: 2.6
+      drive_db: 2.9
       mix: 0.55
     air:
       freq: 12000
@@ -632,9 +632,9 @@ presets:
       ratio: 3.5
     eq_warm:
       freq: 240
-      gain_db: 1.6
+      gain_db: 1.9
       q: 0.8
-    gain_db: 3.2
+    gain_db: 3.6
     silk:
       freq: 6000
       drive_db: 1.1
@@ -676,8 +676,8 @@ presets:
     hpf_hz: 25
     eq_dip:
       freq: 300
-      gain_db: -2.5
-      q: 1.0
+      gain_db: -3.5
+      q: 1.2
     bus_comp:
       threshold_db: -14
       ratio: 1.7
@@ -685,10 +685,10 @@ presets:
       release_ms: 240
     eq_low_shelf:
       freq: 85
-      gain_db: 0.3
+      gain_db: 1.0
     eq_high_shelf:
       freq: 10000
-      gain_db: 1.2
+      gain_db: 1.0
     width: 1.12
     sat:
       drive_db: 0.5
@@ -699,8 +699,8 @@ presets:
     ceiling: -1.5
     eq_presence:
       freq: 3500
-      gain_db: 0.5
-      q: 1.4
+      gain_db: 0.8
+      q: 1.6
     multiband:
       crossover_low: 150
       crossover_high: 3000
@@ -758,11 +758,11 @@ presets:
       q: 1.0
     eq_presence:
       freq: 2500
-      gain_db: 1.2
+      gain_db: 1.5
       q: 1.0
     eq_gloss:
       freq: 9500
-      gain_db: 1.7
+      gain_db: 1.9
       q: 0.9
     eq_air_shelf:
       freq: 13500
@@ -772,7 +772,7 @@ presets:
       ratio: 6.0
       freq: 7300
     warmth:
-      drive_db: 2.6
+      drive_db: 2.9
       mix: 0.55
     air:
       freq: 12000
@@ -788,9 +788,9 @@ presets:
       ratio: 3.5
     eq_warm:
       freq: 240
-      gain_db: 1.6
+      gain_db: 1.9
       q: 0.8
-    gain_db: 3.5
+    gain_db: 3.9
     silk:
       freq: 6000
       drive_db: 1.1
@@ -832,8 +832,8 @@ presets:
     hpf_hz: 25
     eq_dip:
       freq: 300
-      gain_db: -2.5
-      q: 1.0
+      gain_db: -3.5
+      q: 1.2
     bus_comp: &id001
       threshold_db: -14
       ratio: 1.7
@@ -841,10 +841,10 @@ presets:
       release_ms: 240
     eq_low_shelf:
       freq: 85
-      gain_db: 0.3
+      gain_db: 1.0
     eq_high_shelf:
       freq: 10000
-      gain_db: 1.2
+      gain_db: 1.0
     width: 1.12
     sat:
       drive_db: 0.5
@@ -855,8 +855,8 @@ presets:
     ceiling: -1.5
     eq_presence:
       freq: 3500
-      gain_db: 0.5
-      q: 1.4
+      gain_db: 0.8
+      q: 1.6
     multiband:
       crossover_low: 150
       crossover_high: 3000
@@ -914,11 +914,11 @@ presets:
       q: 1.0
     eq_presence:
       freq: 2500
-      gain_db: 1.2
+      gain_db: 1.5
       q: 1.0
     eq_gloss:
       freq: 9500
-      gain_db: 1.7
+      gain_db: 1.9
       q: 0.9
     eq_air_shelf:
       freq: 13500
@@ -928,7 +928,7 @@ presets:
       ratio: 6.0
       freq: 7300
     warmth:
-      drive_db: 2.6
+      drive_db: 2.9
       mix: 0.55
     air:
       freq: 12000
@@ -944,9 +944,9 @@ presets:
       ratio: 3.5
     eq_warm:
       freq: 240
-      gain_db: 1.6
+      gain_db: 1.9
       q: 0.8
-    gain_db: 2.8
+    gain_db: 3.2
     silk:
       freq: 6000
       drive_db: 1.1
@@ -988,15 +988,15 @@ presets:
     hpf_hz: 25
     eq_dip:
       freq: 300
-      gain_db: -2.5
-      q: 1.0
+      gain_db: -3.5
+      q: 1.2
     bus_comp: *id001
     eq_low_shelf:
       freq: 85
-      gain_db: 0.3
+      gain_db: 1.0
     eq_high_shelf:
       freq: 10000
-      gain_db: 1.2
+      gain_db: 1.0
     width: 1.12
     sat:
       drive_db: 0.5
@@ -1007,8 +1007,8 @@ presets:
     ceiling: -1.5
     eq_presence:
       freq: 3500
-      gain_db: 0.5
-      q: 1.4
+      gain_db: 0.8
+      q: 1.6
     multiband:
       crossover_low: 150
       crossover_high: 3000
