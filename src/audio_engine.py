@@ -147,10 +147,11 @@ def env_follow(x, sr, attack_ms=10.0, release_ms=120.0):
 # ══════════════════ دی‌اسر (کنترل سوت «س») ══════════════════
 
 def _band_deess(x, sr, lo_hz, hi_hz, threshold_db, ratio,
-                attack_ms, release_ms):
+                attack_ms, release_ms, max_cut_db=None):
     """هستهٔ دی‌اسر باندی: باند lo..hi رو جدا می‌کنه و فقط همون باند رو
     بر اساس انرژی خودش فشرده می‌کنه (بدون دست‌زدن به بقیهٔ طیف).
 
+    max_cut_db: سقف گین‌ریداکشن (Range) — جلوی کات بیش‌ازحد میدرنج رو می‌گیره.
     بهینهٔ رم: جمع/ضرب درجا + آزادسازی زودهنگام آرایه‌های واسط."""
     hp = highpass(x, sr, lo_hz, order=4)
     band = lowpass(hp, sr, hi_hz, order=4)
@@ -159,6 +160,8 @@ def _band_deess(x, sr, lo_hz, hi_hz, threshold_db, ratio,
     env = env_follow(band, sr, attack_ms, release_ms)
     over = np.maximum(lin2db(env) - np.float32(threshold_db), 0.0)
     gr = over * (1.0 - 1.0 / ratio)
+    if max_cut_db is not None:
+        gr = np.minimum(gr, np.float32(max_cut_db))  # سقف کاهش گین (Range)
     gain = db2lin(-gr).astype(np.float32)
     del env, over, gr
     if gain.ndim == 1 and x.ndim == 2:
@@ -1024,7 +1027,8 @@ def dynamic_eq(x, sr, bands):
             threshold_db=float(b.get("threshold_db", -24.0)),
             ratio=float(b.get("ratio", 2.0)),
             attack_ms=float(b.get("attack_ms", 8.0)),
-            release_ms=float(b.get("release_ms", 80.0)))
+            release_ms=float(b.get("release_ms", 80.0)),
+            max_cut_db=b.get("max_cut_db"))
     return (y[:, 0] if single else y).astype(np.float32)
 
 
@@ -1256,6 +1260,13 @@ def master_chain(x, sr, m):
             break
         y = y * np.float32(db2lin(min(need * 0.85, 5.0)))
         y = Limiter(threshold_db=lim_thr, release_ms=rel)(y, sr)
+
+    # تصحیح دقیق نهایی: لیمیتر (کلیپر سخت 0dBFS) غیرخطیه و ممکنه از هدف رد بشیم
+    # → اگه بلندتر از هدف شدیم، با گین منفی دقیقاً به loop_target برمی‌گردونیم
+    # (کاهش گین هیچ کلیپی نمی‌سازه، پس دقیق و امنه).
+    l = integrated_lufs(y, sr)
+    if -69.0 < l and l > loop_target + 0.1:
+        y = y * np.float32(db2lin(loop_target - l))
 
     # گین نهایی: پیک → ceiling (بلندی → target). لیمیتر کلیپر سخت در 0dBFS
     # گذاشته، پس ضرب در ceiling دقیقاً پیک رو به ceiling می‌رسونه (بدون overshoot).
