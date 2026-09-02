@@ -325,11 +325,11 @@ presets:
       gain_db: 0.5
     eq_high_shelf:
       freq: 11000
-      gain_db: 5.5
+      gain_db: 3.5
     width: 1.08
     sat:
-      drive_db: 2.0
-      mix: 0.2
+      drive_db: 1.1
+      mix: 0.18
     clip:
       ceiling_db: -2.5
     lufs: -9.5
@@ -340,38 +340,38 @@ presets:
       mix: 0.18
     eq_gloss:
       freq: 9500
-      gain_db: 4.5
+      gain_db: 3.0
       q: 0.9
     silk:
       freq: 6000
-      drive_db: 1.8
-      mix: 0.45
+      drive_db: 1.1
+      mix: 0.35
     eq_dip:
       freq: 300
       gain_db: -2.5
       q: 1.0
     eq_presence:
       freq: 3500
-      gain_db: 3.0
+      gain_db: 2.0
       q: 1.0
     multiband:
       crossover_low: 150
       crossover_high: 3000
       low:
         threshold_db: -18
-        ratio: 2.2
-        attack_ms: 15
-        release_ms: 150
-      mid:
-        threshold_db: -16
         ratio: 2.0
+        attack_ms: 20
+        release_ms: 160
+      mid:
+        threshold_db: -17
+        ratio: 1.8
+        attack_ms: 15
+        release_ms: 130
+      high:
+        threshold_db: -15
+        ratio: 1.5
         attack_ms: 10
         release_ms: 110
-      high:
-        threshold_db: -14
-        ratio: 1.8
-        attack_ms: 5
-        release_ms: 90
     bass_mono:
       freq: 130
 - id: acoustic_natural
@@ -692,45 +692,45 @@ presets:
       gain_db: 0.5
     eq_high_shelf:
       freq: 11000
-      gain_db: 5.5
+      gain_db: 3.5
     width: 1.12
     sat:
-      drive_db: 2.0
-      mix: 0.2
+      drive_db: 1.1
+      mix: 0.18
     clip:
       ceiling_db: -2.2
     lufs: -9.5
     ceiling: -1.0
     eq_gloss:
       freq: 9500
-      gain_db: 4.5
+      gain_db: 3.0
       q: 0.9
     silk:
       freq: 6000
-      drive_db: 1.8
-      mix: 0.45
+      drive_db: 1.1
+      mix: 0.35
     eq_presence:
       freq: 3500
-      gain_db: 3.0
+      gain_db: 2.0
       q: 1.0
     multiband:
       crossover_low: 150
       crossover_high: 3000
       low:
         threshold_db: -18
-        ratio: 2.2
-        attack_ms: 15
-        release_ms: 150
-      mid:
-        threshold_db: -16
         ratio: 2.0
+        attack_ms: 20
+        release_ms: 160
+      mid:
+        threshold_db: -17
+        ratio: 1.8
+        attack_ms: 15
+        release_ms: 130
+      high:
+        threshold_db: -15
+        ratio: 1.5
         attack_ms: 10
         release_ms: 110
-      high:
-        threshold_db: -14
-        ratio: 1.8
-        attack_ms: 5
-        release_ms: 90
     bass_mono:
       freq: 130
 - id: viva
@@ -854,45 +854,45 @@ presets:
       gain_db: 0.5
     eq_high_shelf:
       freq: 11000
-      gain_db: 5.5
+      gain_db: 3.5
     width: 1.12
     sat:
-      drive_db: 2.0
-      mix: 0.2
+      drive_db: 1.1
+      mix: 0.18
     clip: &id002
       ceiling_db: -2.2
     lufs: -9.5
     ceiling: -1.0
     eq_gloss:
       freq: 9500
-      gain_db: 4.5
+      gain_db: 3.0
       q: 0.9
     silk:
       freq: 6000
-      drive_db: 1.8
-      mix: 0.45
+      drive_db: 1.1
+      mix: 0.35
     eq_presence:
       freq: 3500
-      gain_db: 3.0
+      gain_db: 2.0
       q: 1.0
     multiband:
       crossover_low: 150
       crossover_high: 3000
       low:
         threshold_db: -18
-        ratio: 2.2
-        attack_ms: 15
-        release_ms: 150
-      mid:
-        threshold_db: -16
         ratio: 2.0
+        attack_ms: 20
+        release_ms: 160
+      mid:
+        threshold_db: -17
+        ratio: 1.8
+        attack_ms: 15
+        release_ms: 130
+      high:
+        threshold_db: -15
+        ratio: 1.5
         attack_ms: 10
         release_ms: 110
-      high:
-        threshold_db: -14
-        ratio: 1.8
-        attack_ms: 5
-        release_ms: 90
     bass_mono:
       freq: 130
 - id: viva_bedler
@@ -1012,44 +1012,44 @@ presets:
       gain_db: 0.5
     eq_high_shelf:
       freq: 11000
-      gain_db: 5.5
+      gain_db: 3.5
     width: 1.12
     sat:
-      drive_db: 2.0
-      mix: 0.2
+      drive_db: 1.1
+      mix: 0.18
     clip: *id002
     lufs: -9.5
     ceiling: -1.0
     eq_gloss:
       freq: 9500
-      gain_db: 4.5
+      gain_db: 3.0
       q: 0.9
     silk:
       freq: 6000
-      drive_db: 1.8
-      mix: 0.45
+      drive_db: 1.1
+      mix: 0.35
     eq_presence:
       freq: 3500
-      gain_db: 3.0
+      gain_db: 2.0
       q: 1.0
     multiband:
       crossover_low: 150
       crossover_high: 3000
       low:
         threshold_db: -18
-        ratio: 2.2
-        attack_ms: 15
-        release_ms: 150
-      mid:
-        threshold_db: -16
         ratio: 2.0
+        attack_ms: 20
+        release_ms: 160
+      mid:
+        threshold_db: -17
+        ratio: 1.8
+        attack_ms: 15
+        release_ms: 130
+      high:
+        threshold_db: -15
+        ratio: 1.5
         attack_ms: 10
         release_ms: 110
-      high:
-        threshold_db: -14
-        ratio: 1.8
-        attack_ms: 5
-        release_ms: 90
     bass_mono:
       freq: 130
 - id: vintage_tape
