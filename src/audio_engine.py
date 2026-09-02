@@ -280,6 +280,58 @@ def width_ms(x, amount=1.1):
     side = (x[:, 0] - x[:, 1]) / 2.0 * amount
     return np.stack([mid + side, mid - side], axis=1).astype(np.float32)
 
+# ══════════════════ مولتی‌باند + باس مونو (مستر/بیت) ══════════════════
+
+def multiband_compress(x, sr, crossover_low=150.0, crossover_high=3000.0,
+                       comp_low=None, comp_mid=None, comp_high=None):
+    """مولتی‌باند کمپرسور ۳ بانده (Low/Mid/High) با کراس‌اوور Linkwitz-Riley.
+
+    هر باند جدا فشرده می‌شه → پانچ کیک/باس و وضوح سازها بدون له‌کردن میدرنج.
+    comp_low/mid/high: dict با threshold_db, ratio, attack_ms, release_ms.
+    """
+    single = x.ndim == 1
+    x = to_stereo(np.asarray(x, dtype=np.float32))
+
+    def _split(sig, freq, btype):
+        sos = spsig.butter(4, freq, btype=btype, fs=sr, output="sos")
+        return spsig.sosfilt(sos, sig, axis=0).astype(np.float32)
+
+    low = _split(x, crossover_low, "low")
+    rest = _split(x, crossover_low, "high")
+    mid = _split(rest, crossover_high, "low")
+    high = _split(rest, crossover_high, "high")
+    del rest, x
+
+    def _c(cfg, thr, ratio, att, rel):
+        cfg = cfg or {}
+        return Compressor(
+            threshold_db=cfg.get("threshold_db", thr),
+            ratio=cfg.get("ratio", ratio),
+            attack_ms=cfg.get("attack_ms", att),
+            release_ms=cfg.get("release_ms", rel))
+
+    low = np.asarray(_c(comp_low, -18, 2.2, 15, 150)(low, sr), dtype=np.float32)
+    mid = np.asarray(_c(comp_mid, -16, 2.0, 10, 110)(mid, sr), dtype=np.float32)
+    high = np.asarray(_c(comp_high, -14, 1.8, 5, 90)(high, sr), dtype=np.float32)
+    y = low + mid + high
+    del low, mid, high
+    return (y[:, 0] if single else y).astype(np.float32)
+
+
+def bass_monoize(x, sr, freq=130.0):
+    """جمع‌کردن باس زیر freq به مونو (سازگاری فاز روی کلاب/وینیل + باس متمرکز).
+
+    فرکانس‌های بالای freq دست‌نخورده استریو می‌مونن.
+    """
+    if x.ndim != 2:
+        return x
+    lp = lowpass(x, sr, freq, order=4)
+    hp = highpass(x, sr, freq, order=4)
+    mono = lp.mean(axis=1, keepdims=True)
+    mono = np.repeat(mono, 2, axis=1)
+    return (mono + hp).astype(np.float32)
+
+
 # ══════════════════ Ducking (جا باز کردن برای وکال) ══════════════════
 
 def noise_gate(x, sr, threshold_db=-50.0, ratio=3.0,
@@ -886,6 +938,16 @@ def master_chain(x, sr, m):
                        attack_ms=bc["attack_ms"], release_ms=bc["release_ms"])(y, sr)
         rep.append(f"کمپرسور باس ({bc['ratio']}:۱) — چسبندگی کل آهنگ")
 
+    # مولتی‌باند ۳ بانده — پانچ کیک/باس و وضوح سازها (جدا از میدرنج)
+    mb = m.get("multiband")
+    if mb:
+        y = multiband_compress(
+            y, sr,
+            crossover_low=float(mb.get("crossover_low", 150.0)),
+            crossover_high=float(mb.get("crossover_high", 3000.0)),
+            comp_low=mb.get("low"), comp_mid=mb.get("mid"), comp_high=mb.get("high"))
+        rep.append("مولتی‌باند (Low/Mid/High) — پانچ باس و وضوح سازها")
+
     # کمپرسور موازی باس مستر (NY) — پانچ و ضخامت بدون له شدن ترنزینت‌ها
     bp = m.get("bus_parallel")
     if bp:
@@ -931,6 +993,12 @@ def master_chain(x, sr, m):
     if abs(w - 1.0) > 1e-4:
         y = width_ms(y, w)
         rep.append(f"پهنای استریو ({int(w * 100)}٪)")
+
+    # باس مونو — متمرکزکردن زیر بم (سازگاری فاز + باس تمیز)
+    bm = m.get("bass_mono")
+    if bm:
+        y = bass_monoize(y, sr, freq=float(bm.get("freq", 130.0)))
+        rep.append(f"باس مونو (زیر {int(bm.get('freq', 130.0))}Hz)")
 
     sat = m.get("sat")
     if sat:
