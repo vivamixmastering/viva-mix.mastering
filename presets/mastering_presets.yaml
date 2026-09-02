@@ -324,11 +324,11 @@ presets:
       release_ms: 300
     eq_low_shelf:
       freq: 85
-      gain_db: 0.4
+      gain_db: 0.6
     eq_high_shelf:
       freq: 10000
       gain_db: 0.8
-    width: 1.03
+    width: 0.95
     sat:
       drive_db: 0.3
       mix: 0.15
@@ -342,12 +342,12 @@ presets:
       mix: 0.18
     eq_dip:
       freq: 320
-      gain_db: -4.0
+      gain_db: -2.5
       q: 0.8
     eq_presence:
       freq: 3500
-      gain_db: 0.8
-      q: 1.6
+      gain_db: 1.2
+      q: 1.1
     multiband:
       crossover_low: 150
       crossover_high: 3000
@@ -680,7 +680,7 @@ presets:
     hpf_hz: 25
     eq_dip:
       freq: 320
-      gain_db: -4.0
+      gain_db: -2.5
       q: 0.8
     bus_comp:
       threshold_db: -14
@@ -689,11 +689,11 @@ presets:
       release_ms: 240
     eq_low_shelf:
       freq: 85
-      gain_db: 0.4
+      gain_db: 0.6
     eq_high_shelf:
       freq: 10000
       gain_db: 0.8
-    width: 1.03
+    width: 0.95
     sat:
       drive_db: 0.3
       mix: 0.15
@@ -703,8 +703,8 @@ presets:
     ceiling: -1.5
     eq_presence:
       freq: 3500
-      gain_db: 0.8
-      q: 1.6
+      gain_db: 1.2
+      q: 1.1
     multiband:
       crossover_low: 150
       crossover_high: 3000
@@ -840,7 +840,7 @@ presets:
     hpf_hz: 25
     eq_dip:
       freq: 320
-      gain_db: -4.0
+      gain_db: -2.5
       q: 0.8
     bus_comp: &id001
       threshold_db: -14
@@ -849,11 +849,11 @@ presets:
       release_ms: 240
     eq_low_shelf:
       freq: 85
-      gain_db: 0.4
+      gain_db: 0.6
     eq_high_shelf:
       freq: 10000
       gain_db: 0.8
-    width: 1.03
+    width: 0.95
     sat:
       drive_db: 0.3
       mix: 0.15
@@ -863,8 +863,8 @@ presets:
     ceiling: -1.5
     eq_presence:
       freq: 3500
-      gain_db: 0.8
-      q: 1.6
+      gain_db: 1.2
+      q: 1.1
     multiband:
       crossover_low: 150
       crossover_high: 3000
@@ -1000,16 +1000,16 @@ presets:
     hpf_hz: 25
     eq_dip:
       freq: 320
-      gain_db: -4.0
+      gain_db: -2.5
       q: 0.8
     bus_comp: *id001
     eq_low_shelf:
       freq: 85
-      gain_db: 0.4
+      gain_db: 0.6
     eq_high_shelf:
       freq: 10000
       gain_db: 0.8
-    width: 1.03
+    width: 0.95
     sat:
       drive_db: 0.3
       mix: 0.15
@@ -1019,8 +1019,8 @@ presets:
     ceiling: -1.5
     eq_presence:
       freq: 3500
-      gain_db: 0.8
-      q: 1.6
+      gain_db: 1.2
+      q: 1.1
     multiband:
       crossover_low: 150
       crossover_high: 3000
