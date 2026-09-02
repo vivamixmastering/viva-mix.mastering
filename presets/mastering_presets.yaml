@@ -341,9 +341,9 @@ presets:
       ratio: 1.8
       mix: 0.18
     eq_dip:
-      freq: 300
-      gain_db: -3.5
-      q: 1.2
+      freq: 320
+      gain_db: -4.0
+      q: 0.8
     eq_presence:
       freq: 3500
       gain_db: 0.8
@@ -679,9 +679,9 @@ presets:
     working_lufs: -18
     hpf_hz: 25
     eq_dip:
-      freq: 300
-      gain_db: -3.5
-      q: 1.2
+      freq: 320
+      gain_db: -4.0
+      q: 0.8
     bus_comp:
       threshold_db: -14
       ratio: 1.7
@@ -839,9 +839,9 @@ presets:
     working_lufs: -18
     hpf_hz: 25
     eq_dip:
-      freq: 300
-      gain_db: -3.5
-      q: 1.2
+      freq: 320
+      gain_db: -4.0
+      q: 0.8
     bus_comp: &id001
       threshold_db: -14
       ratio: 1.7
@@ -999,9 +999,9 @@ presets:
     working_lufs: -18
     hpf_hz: 25
     eq_dip:
-      freq: 300
-      gain_db: -3.5
-      q: 1.2
+      freq: 320
+      gain_db: -4.0
+      q: 0.8
     bus_comp: *id001
     eq_low_shelf:
       freq: 85
