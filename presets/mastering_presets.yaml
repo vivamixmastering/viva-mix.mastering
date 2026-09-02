@@ -354,6 +354,26 @@ presets:
       freq: 3500
       gain_db: 1.0
       q: 1.0
+    multiband:
+      crossover_low: 150
+      crossover_high: 3000
+      low:
+        threshold_db: -22
+        ratio: 1.6
+        attack_ms: 35
+        release_ms: 220
+      mid:
+        threshold_db: -20
+        ratio: 1.5
+        attack_ms: 20
+        release_ms: 160
+      high:
+        threshold_db: -18
+        ratio: 1.4
+        attack_ms: 12
+        release_ms: 120
+    bass_mono:
+      freq: 120
 - id: acoustic_natural
   name: 🎸 آکوستیک طبیعی
   desc: شفاف و دست‌نخورده با جلای ملایم — کمترین فشرده‌سازی، برای آکوستیک و لایو
@@ -693,6 +713,26 @@ presets:
       freq: 3500
       gain_db: 1.0
       q: 1.0
+    multiband:
+      crossover_low: 150
+      crossover_high: 3000
+      low:
+        threshold_db: -22
+        ratio: 1.6
+        attack_ms: 35
+        release_ms: 220
+      mid:
+        threshold_db: -20
+        ratio: 1.5
+        attack_ms: 20
+        release_ms: 160
+      high:
+        threshold_db: -18
+        ratio: 1.4
+        attack_ms: 12
+        release_ms: 120
+    bass_mono:
+      freq: 120
 - id: viva
   name: 🌟 ویوا
   desc: وکال گرم، پرقدرت و براق + مسترینگ برنده — اتوتیون ملایم، حضور و درخشش بالا
@@ -835,6 +875,26 @@ presets:
       freq: 3500
       gain_db: 1.0
       q: 1.0
+    multiband:
+      crossover_low: 150
+      crossover_high: 3000
+      low:
+        threshold_db: -22
+        ratio: 1.6
+        attack_ms: 35
+        release_ms: 220
+      mid:
+        threshold_db: -20
+        ratio: 1.5
+        attack_ms: 20
+        release_ms: 160
+      high:
+        threshold_db: -18
+        ratio: 1.4
+        attack_ms: 12
+        release_ms: 120
+    bass_mono:
+      freq: 120
 - id: viva_bedler
   name: 🎵 ویوا بدلر
   desc: مسترینگ بیت/آهنگ کامل — همون تنظیم برندهٔ دیشب، بدون تغییر تُنال
@@ -972,6 +1032,26 @@ presets:
       freq: 3500
       gain_db: 1.0
       q: 1.0
+    multiband:
+      crossover_low: 150
+      crossover_high: 3000
+      low:
+        threshold_db: -22
+        ratio: 1.6
+        attack_ms: 35
+        release_ms: 220
+      mid:
+        threshold_db: -20
+        ratio: 1.5
+        attack_ms: 20
+        release_ms: 160
+      high:
+        threshold_db: -18
+        ratio: 1.4
+        attack_ms: 12
+        release_ms: 120
+    bass_mono:
+      freq: 120
 - id: vintage_tape
   name: 📼 وینتج تیپ
   desc: صدای نواری گرم دهه ۷۰ — اشباع زیاد و جلای گرمِ محدود (کاراکتر تیپ حفظ می‌شه)
