@@ -334,6 +334,18 @@ def multiband_compress(x, sr, crossover_low=150.0, crossover_high=3000.0,
     low = np.asarray(_c(comp_low, -18, 2.2, 15, 150)(low, sr), dtype=np.float32)
     mid = np.asarray(_c(comp_mid, -16, 2.0, 10, 110)(mid, sr), dtype=np.float32)
     high = np.asarray(_c(comp_high, -14, 1.8, 5, 90)(high, sr), dtype=np.float32)
+
+    # گین اختیاری هر باند (makeup) — مثلاً باند High برای بیرون‌زدن های‌هت
+    g_low = float((comp_low or {}).get("gain_db", 0.0))
+    g_mid = float((comp_mid or {}).get("gain_db", 0.0))
+    g_high = float((comp_high or {}).get("gain_db", 0.0))
+    if g_low:
+        low = low * np.float32(db2lin(g_low))
+    if g_mid:
+        mid = mid * np.float32(db2lin(g_mid))
+    if g_high:
+        high = high * np.float32(db2lin(g_high))
+
     y = low + mid + high
     del low, mid, high, band
     return (y[:, 0] if single else y).astype(np.float32)
