@@ -1001,6 +1001,15 @@ def master_chain(x, sr, m):
         y = LowShelfFilter(cutoff_frequency_hz=ls["freq"],
                            gain_db=ls["gain_db"], q=0.7)(y, sr)
         rep.append(f"گرمی بم کل ({ls['gain_db']:+g}dB @ {ls['freq']}Hz)")
+    # اشباع/گرمی قبل از EQ بالا — تا هارمونیک‌های تولیدشده توسط EQ بالا
+    # کنترل/شکل‌گیری بشن (نه اینکه بی‌کنترل روی باند حساس ۶–۱۱kHz بشینن)
+    sat = m.get("sat")
+    if sat:
+        y = block_apply(
+            lambda blk: saturation(blk, sr, sat["drive_db"], sat["mix"]), y, sr,
+            block_s=30.0)
+        rep.append(f"اشباع/گرمی (قبل از EQ بالا — {sat['drive_db']}dB)")
+
     hs = m.get("eq_high_shelf")
     if hs:
         y = HighShelfFilter(cutoff_frequency_hz=hs["freq"],
@@ -1037,13 +1046,6 @@ def master_chain(x, sr, m):
     if bm:
         y = bass_monoize(y, sr, freq=float(bm.get("freq", 130.0)))
         rep.append(f"باس مونو (زیر {int(bm.get('freq', 130.0))}Hz)")
-
-    sat = m.get("sat")
-    if sat:
-        y = block_apply(
-            lambda blk: saturation(blk, sr, sat["drive_db"], sat["mix"]), y, sr,
-            block_s=30.0)
-        rep.append(f"اشباع نهایی (گرمای کلی {sat['drive_db']}dB)")
 
     ceiling = m.get("ceiling", -1.0)
     target = m.get("lufs", -12.0)

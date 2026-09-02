@@ -285,13 +285,13 @@ presets:
     stereo_repair: true
     double:
       enabled: true
-      detune_cents: 8.0
+      detune_cents: 9.0
       delay_ms: 0.0
       reverb_wet: 0.12
       room: 0.35
       damping: 0.5
-      back_gain: 0.42
-      mix: 0.32
+      back_gain: 0.55
+      mix: 0.4
     eq_high_shelf:
       freq: 8000
       gain_db: 1.0
@@ -326,36 +326,28 @@ presets:
       freq: 85
       gain_db: 0.3
     eq_high_shelf:
-      freq: 11000
-      gain_db: 1.7
+      freq: 10000
+      gain_db: 1.2
     width: 1.08
     sat:
       drive_db: 0.5
       mix: 0.18
     clip:
-      ceiling_db: -2.5
-    lufs: -9.5
-    ceiling: -1.0
+      ceiling_db: -1.5
+    lufs: -11.0
+    ceiling: -1.5
     bus_parallel:
       threshold_db: -32.0
       ratio: 1.8
       mix: 0.18
-    eq_gloss:
-      freq: 9500
-      gain_db: 1.5
-      q: 0.9
-    silk:
-      freq: 6000
-      drive_db: 0.5
-      mix: 0.35
     eq_dip:
       freq: 300
       gain_db: -2.5
       q: 1.0
     eq_presence:
       freq: 3500
-      gain_db: 1.0
-      q: 1.0
+      gain_db: 0.5
+      q: 1.4
     multiband:
       crossover_low: 150
       crossover_high: 3000
@@ -650,13 +642,13 @@ presets:
     stereo_repair: true
     double:
       enabled: true
-      detune_cents: 8.0
+      detune_cents: 9.0
       delay_ms: 0.0
       reverb_wet: 0.12
       room: 0.35
       damping: 0.5
-      back_gain: 0.42
-      mix: 0.32
+      back_gain: 0.55
+      mix: 0.4
     eq_high_shelf:
       freq: 8000
       gain_db: 1.0
@@ -695,28 +687,20 @@ presets:
       freq: 85
       gain_db: 0.3
     eq_high_shelf:
-      freq: 11000
-      gain_db: 1.7
+      freq: 10000
+      gain_db: 1.2
     width: 1.12
     sat:
       drive_db: 0.5
       mix: 0.18
     clip:
-      ceiling_db: -2.2
-    lufs: -9.5
-    ceiling: -1.0
-    eq_gloss:
-      freq: 9500
-      gain_db: 1.5
-      q: 0.9
-    silk:
-      freq: 6000
-      drive_db: 0.5
-      mix: 0.35
+      ceiling_db: -1.5
+    lufs: -11.0
+    ceiling: -1.5
     eq_presence:
       freq: 3500
-      gain_db: 1.0
-      q: 1.0
+      gain_db: 0.5
+      q: 1.4
     multiband:
       crossover_low: 150
       crossover_high: 3000
@@ -814,13 +798,13 @@ presets:
     stereo_repair: true
     double:
       enabled: true
-      detune_cents: 8.0
+      detune_cents: 9.0
       delay_ms: 0.0
       reverb_wet: 0.12
       room: 0.35
       damping: 0.5
-      back_gain: 0.42
-      mix: 0.32
+      back_gain: 0.55
+      mix: 0.4
     eq_high_shelf:
       freq: 8000
       gain_db: 1.0
@@ -859,28 +843,20 @@ presets:
       freq: 85
       gain_db: 0.3
     eq_high_shelf:
-      freq: 11000
-      gain_db: 1.7
+      freq: 10000
+      gain_db: 1.2
     width: 1.12
     sat:
       drive_db: 0.5
       mix: 0.18
-    clip: &id002
-      ceiling_db: -2.2
-    lufs: -9.5
-    ceiling: -1.0
-    eq_gloss:
-      freq: 9500
-      gain_db: 1.5
-      q: 0.9
-    silk:
-      freq: 6000
-      drive_db: 0.5
-      mix: 0.35
+    clip:
+      ceiling_db: -1.5
+    lufs: -11.0
+    ceiling: -1.5
     eq_presence:
       freq: 3500
-      gain_db: 1.0
-      q: 1.0
+      gain_db: 0.5
+      q: 1.4
     multiband:
       crossover_low: 150
       crossover_high: 3000
@@ -978,13 +954,13 @@ presets:
     stereo_repair: true
     double:
       enabled: true
-      detune_cents: 8.0
+      detune_cents: 9.0
       delay_ms: 0.0
       reverb_wet: 0.12
       room: 0.35
       damping: 0.5
-      back_gain: 0.42
-      mix: 0.32
+      back_gain: 0.55
+      mix: 0.4
     eq_high_shelf:
       freq: 8000
       gain_db: 1.0
@@ -1019,27 +995,20 @@ presets:
       freq: 85
       gain_db: 0.3
     eq_high_shelf:
-      freq: 11000
-      gain_db: 1.7
+      freq: 10000
+      gain_db: 1.2
     width: 1.12
     sat:
       drive_db: 0.5
       mix: 0.18
-    clip: *id002
-    lufs: -9.5
-    ceiling: -1.0
-    eq_gloss:
-      freq: 9500
-      gain_db: 1.5
-      q: 0.9
-    silk:
-      freq: 6000
-      drive_db: 0.5
-      mix: 0.35
+    clip:
+      ceiling_db: -1.5
+    lufs: -11.0
+    ceiling: -1.5
     eq_presence:
       freq: 3500
-      gain_db: 1.0
-      q: 1.0
+      gain_db: 0.5
+      q: 1.4
     multiband:
       crossover_low: 150
       crossover_high: 3000
