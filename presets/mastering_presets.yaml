@@ -310,10 +310,10 @@ presets:
       delay_hpf_hz: 350
       delay_lpf_hz: 6500
   mix:
-    vocal_gain_db: 2.0
-    inst_gain_db: -2.5
-    duck_db: 2.5
-    vocal_lead_db: 3.0
+    vocal_gain_db: 0.9
+    inst_gain_db: -1.0
+    duck_db: 1.2
+    vocal_lead_db: 1.5
   master:
     working_lufs: -18
     hpf_hz: 24
@@ -324,14 +324,14 @@ presets:
       release_ms: 300
     eq_low_shelf:
       freq: 85
-      gain_db: 1.0
+      gain_db: 0.4
     eq_high_shelf:
       freq: 10000
-      gain_db: 1.0
-    width: 1.08
+      gain_db: 0.8
+    width: 1.03
     sat:
-      drive_db: 0.5
-      mix: 0.18
+      drive_db: 0.3
+      mix: 0.15
     clip:
       ceiling_db: -1.5
     lufs: -11.0
@@ -353,21 +353,25 @@ presets:
       crossover_high: 3000
       low:
         threshold_db: -22
-        ratio: 1.6
+        ratio: 1.35
         attack_ms: 35
         release_ms: 220
       mid:
         threshold_db: -20
-        ratio: 1.5
+        ratio: 1.4
         attack_ms: 20
         release_ms: 160
       high:
         threshold_db: -18
-        ratio: 1.4
-        attack_ms: 12
+        ratio: 1.3
+        attack_ms: 22
         release_ms: 120
     bass_mono:
-      freq: 120
+      freq: 100
+    gate:
+      threshold_db: -55.0
+      ratio: 3.0
+      release_ms: 180.0
 - id: acoustic_natural
   name: 🎸 آکوستیک طبیعی
   desc: شفاف و دست‌نخورده با جلای ملایم — کمترین فشرده‌سازی، برای آکوستیک و لایو
@@ -667,10 +671,10 @@ presets:
       delay_hpf_hz: 350
       delay_lpf_hz: 6500
   mix:
-    vocal_gain_db: 2.5
-    inst_gain_db: -3.0
-    duck_db: 3.5
-    vocal_lead_db: 3.0
+    vocal_gain_db: 1.0
+    inst_gain_db: -1.0
+    duck_db: 1.2
+    vocal_lead_db: 1.5
   master:
     working_lufs: -18
     hpf_hz: 25
@@ -685,14 +689,14 @@ presets:
       release_ms: 240
     eq_low_shelf:
       freq: 85
-      gain_db: 1.0
+      gain_db: 0.4
     eq_high_shelf:
       freq: 10000
-      gain_db: 1.0
-    width: 1.12
+      gain_db: 0.8
+    width: 1.03
     sat:
-      drive_db: 0.5
-      mix: 0.18
+      drive_db: 0.3
+      mix: 0.15
     clip:
       ceiling_db: -1.5
     lufs: -11.0
@@ -706,21 +710,25 @@ presets:
       crossover_high: 3000
       low:
         threshold_db: -22
-        ratio: 1.6
+        ratio: 1.35
         attack_ms: 35
         release_ms: 220
       mid:
         threshold_db: -20
-        ratio: 1.5
+        ratio: 1.4
         attack_ms: 20
         release_ms: 160
       high:
         threshold_db: -18
-        ratio: 1.4
-        attack_ms: 12
+        ratio: 1.3
+        attack_ms: 22
         release_ms: 120
     bass_mono:
-      freq: 120
+      freq: 100
+    gate:
+      threshold_db: -55.0
+      ratio: 3.0
+      release_ms: 180.0
 - id: viva
   name: 🌟 ویوا
   desc: وکال گرم، پرقدرت و براق + مسترینگ برنده — اتوتیون ملایم، حضور و درخشش بالا
@@ -823,10 +831,10 @@ presets:
       delay_hpf_hz: 350
       delay_lpf_hz: 6500
   mix:
-    vocal_gain_db: 2.5
-    inst_gain_db: -3.0
-    duck_db: 3.5
-    vocal_lead_db: 3.0
+    vocal_gain_db: 1.0
+    inst_gain_db: -1.0
+    duck_db: 1.2
+    vocal_lead_db: 1.5
   master:
     working_lufs: -18
     hpf_hz: 25
@@ -841,14 +849,14 @@ presets:
       release_ms: 240
     eq_low_shelf:
       freq: 85
-      gain_db: 1.0
+      gain_db: 0.4
     eq_high_shelf:
       freq: 10000
-      gain_db: 1.0
-    width: 1.12
+      gain_db: 0.8
+    width: 1.03
     sat:
-      drive_db: 0.5
-      mix: 0.18
+      drive_db: 0.3
+      mix: 0.15
     clip:
       ceiling_db: -1.5
     lufs: -11.0
@@ -862,21 +870,25 @@ presets:
       crossover_high: 3000
       low:
         threshold_db: -22
-        ratio: 1.6
+        ratio: 1.35
         attack_ms: 35
         release_ms: 220
       mid:
         threshold_db: -20
-        ratio: 1.5
+        ratio: 1.4
         attack_ms: 20
         release_ms: 160
       high:
         threshold_db: -18
-        ratio: 1.4
-        attack_ms: 12
+        ratio: 1.3
+        attack_ms: 22
         release_ms: 120
     bass_mono:
-      freq: 120
+      freq: 100
+    gate:
+      threshold_db: -55.0
+      ratio: 3.0
+      release_ms: 180.0
 - id: viva_bedler
   name: 🎵 ویوا بدلر
   desc: مسترینگ بیت/آهنگ کامل — همون تنظیم برندهٔ دیشب، بدون تغییر تُنال
@@ -979,10 +991,10 @@ presets:
       delay_hpf_hz: 350
       delay_lpf_hz: 6500
   mix:
-    vocal_gain_db: 1.5
-    inst_gain_db: -3.0
-    duck_db: 3.0
-    vocal_lead_db: 3.0
+    vocal_gain_db: 0.8
+    inst_gain_db: -1.0
+    duck_db: 1.2
+    vocal_lead_db: 1.5
   master:
     working_lufs: -18
     hpf_hz: 25
@@ -993,14 +1005,14 @@ presets:
     bus_comp: *id001
     eq_low_shelf:
       freq: 85
-      gain_db: 1.0
+      gain_db: 0.4
     eq_high_shelf:
       freq: 10000
-      gain_db: 1.0
-    width: 1.12
+      gain_db: 0.8
+    width: 1.03
     sat:
-      drive_db: 0.5
-      mix: 0.18
+      drive_db: 0.3
+      mix: 0.15
     clip:
       ceiling_db: -1.5
     lufs: -11.0
@@ -1014,21 +1026,25 @@ presets:
       crossover_high: 3000
       low:
         threshold_db: -22
-        ratio: 1.6
+        ratio: 1.35
         attack_ms: 35
         release_ms: 220
       mid:
         threshold_db: -20
-        ratio: 1.5
+        ratio: 1.4
         attack_ms: 20
         release_ms: 160
       high:
         threshold_db: -18
-        ratio: 1.4
-        attack_ms: 12
+        ratio: 1.3
+        attack_ms: 22
         release_ms: 120
     bass_mono:
-      freq: 120
+      freq: 100
+    gate:
+      threshold_db: -55.0
+      ratio: 3.0
+      release_ms: 180.0
 - id: vintage_tape
   name: 📼 وینتج تیپ
   desc: صدای نواری گرم دهه ۷۰ — اشباع زیاد و جلای گرمِ محدود (کاراکتر تیپ حفظ می‌شه)
@@ -1422,90 +1438,90 @@ mix_models:
 - id: vocal_forward
   name: 🎤 وکال جلو
   desc: وکال برجسته — مناسب بالاد و کار احساسی
-  vocal_gain_db: 2.5
-  inst_gain_db: -2.5
-  vocal_lead_db: 4.0
-  duck_db: 2.0
+  vocal_gain_db: 1.2
+  inst_gain_db: -1.2
+  vocal_lead_db: 2.0
+  duck_db: 1.2
   glue_ratio: 1.4
   width: 1.05
 - id: balanced
   name: ⚖️ متعادل
   desc: بالانس طبیعی — مناسب پاپ و عمومی
-  vocal_gain_db: 0.5
-  inst_gain_db: -0.5
-  vocal_lead_db: 2.0
-  duck_db: 1.5
+  vocal_gain_db: 0.3
+  inst_gain_db: -0.3
+  vocal_lead_db: 1.5
+  duck_db: 1.0
   glue_ratio: 1.6
-  width: 1.08
+  width: 1.05
 - id: club_punch
   name: 🔥 کلوپ / پانچ
   desc: بیت پرانرژی، وکال تو میکس — مناسب شاد و رقصی
   vocal_gain_db: 0.0
-  inst_gain_db: 1.0
+  inst_gain_db: 0.5
   vocal_lead_db: 1.0
-  duck_db: 3.0
+  duck_db: 1.5
   glue_ratio: 2.0
-  width: 1.12
+  width: 1.08
 - id: soft_silk
   name: 💧 لطیف / ابریشمی
   desc: وکال نرم و باز — مناسب آراندبی و لطیف
-  vocal_gain_db: 2.0
-  inst_gain_db: -2.0
-  vocal_lead_db: 3.5
-  duck_db: 1.0
+  vocal_gain_db: 1.0
+  inst_gain_db: -1.0
+  vocal_lead_db: 1.8
+  duck_db: 0.8
   glue_ratio: 1.3
   width: 1.03
 - id: radio_gloss
   name: 🎙️ براق رادیویی
   desc: وکال جلو و شفاف — مناسب پاپ رادیویی
-  vocal_gain_db: 3.0
-  inst_gain_db: -3.0
-  vocal_lead_db: 5.0
-  duck_db: 2.5
+  vocal_gain_db: 1.5
+  inst_gain_db: -1.5
+  vocal_lead_db: 2.2
+  duck_db: 1.5
   glue_ratio: 1.5
-  width: 1.1
+  width: 1.06
 - id: trap_punch
   name: 💥 ترپ / پانچ
   desc: بیت تهاجمی، وکال تیز — مناسب ترپ و هیپ‌هاپ
   vocal_gain_db: 0.0
-  inst_gain_db: 0.5
-  vocal_lead_db: 1.5
-  duck_db: 4.0
+  inst_gain_db: 0.3
+  vocal_lead_db: 1.0
+  duck_db: 1.5
   glue_ratio: 2.2
-  width: 1.15
+  width: 1.08
 - id: intimate_ballad
   name: 🕯️ بالاد صمیمی
   desc: وکال گرم و نزدیک — مناسب احساسی و بالاد
-  vocal_gain_db: 3.0
-  inst_gain_db: -3.5
-  vocal_lead_db: 4.5
-  duck_db: 1.0
+  vocal_gain_db: 1.5
+  inst_gain_db: -1.8
+  vocal_lead_db: 2.2
+  duck_db: 0.8
   glue_ratio: 1.2
   width: 1.02
 - id: wide_cinema
   name: 🎬 سینمایی عریض
   desc: فضای باز و عریض — مناسب سینمایی و حماسی
-  vocal_gain_db: 1.0
-  inst_gain_db: -1.0
-  vocal_lead_db: 2.5
-  duck_db: 1.5
+  vocal_gain_db: 0.6
+  inst_gain_db: -0.6
+  vocal_lead_db: 1.5
+  duck_db: 1.0
   glue_ratio: 1.4
-  width: 1.25
+  width: 1.15
 - id: punchy_pop
   name: ⚡ پاپ پانچی
   desc: انرژی بالا و ضربه‌دار — مناسب پاپ پرانرژی
-  vocal_gain_db: 1.5
-  inst_gain_db: -0.5
-  vocal_lead_db: 3.0
-  duck_db: 2.5
+  vocal_gain_db: 0.8
+  inst_gain_db: -0.3
+  vocal_lead_db: 1.8
+  duck_db: 1.5
   glue_ratio: 1.8
-  width: 1.12
+  width: 1.06
 - id: loud_club
   name: 🔊 کلوپ بلند
   desc: بلند و فشرده — مناسب کلاب و رقصی
-  vocal_gain_db: -0.5
-  inst_gain_db: 1.5
+  vocal_gain_db: -0.3
+  inst_gain_db: 1.0
   vocal_lead_db: 0.5
-  duck_db: 3.5
+  duck_db: 1.5
   glue_ratio: 2.4
-  width: 1.18
+  width: 1.1

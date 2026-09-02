@@ -964,6 +964,17 @@ def master_chain(x, sr, m):
         y = HighpassFilter(cutoff_frequency_hz=int(hpf))(y, sr)
         rep.append(f"پاکسازی ساب (زیر {int(hpf)}Hz)")
 
+    # گیت نرم — پاک‌سازی هیس/نویز «شششش» سکوت‌ها (پایان آهنگ و بین فریزها)
+    # بدون دست‌زدن به موزیک (آستانه خیلی پایین، فقط کف نویز رو می‌بنده)
+    g = m.get("gate")
+    if g is not False:
+        gc = g if isinstance(g, dict) else {}
+        y = noise_gate(y, sr,
+                       threshold_db=gc.get("threshold_db", -55.0),
+                       ratio=gc.get("ratio", 3.0),
+                       release_ms=gc.get("release_ms", 180.0))
+        rep.append("گیت نرم — پاک‌سازی هیس/نویز سکوت‌ها")
+
     dip = m.get("eq_dip")
     if dip:
         y = PeakFilter(cutoff_frequency_hz=dip["freq"], gain_db=dip["gain_db"],
