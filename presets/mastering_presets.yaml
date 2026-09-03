@@ -245,7 +245,7 @@ presets:
       q: 1.4
     eq_presence:
       freq: 2500
-      gain_db: 1.6
+      gain_db: 2.2
       q: 1.0
     eq_gloss:
       freq: 9500
@@ -259,7 +259,7 @@ presets:
       ratio: 6.0
       freq: 7300
       freq2: 4500
-      ratio2: 3.0
+      ratio2: 2.5
     warmth:
       drive_db: 5.0
       mix: 0.65
@@ -272,12 +272,12 @@ presets:
       threshold_db: -12.0
       ratio: 4.0
     harshness:
-      freq: 3500
-      threshold_db: -22.0
-      ratio: 4.0
+      freq: 4000
+      threshold_db: -18.0
+      ratio: 3.0
     eq_warm:
       freq: 240
-      gain_db: 3.0
+      gain_db: 2.5
       q: 0.8
     gain_db: 5.5
     silk:
@@ -294,7 +294,7 @@ presets:
       body_level_db: -6.0
       depth_pre_delay_ms: 35.0
       body_width: 0.45
-      shimmer_level_db: -30.0
+      shimmer_level_db: -20.0
     slap_delay:
       enabled: true
       time_s: 0.035
@@ -306,7 +306,7 @@ presets:
   mix:
     vocal_gain_db: 0.9
     inst_gain_db: -1.0
-    duck_db: 1.2
+    duck_db: 1.8
     vocal_lead_db: 1.5
   master:
     working_lufs: -18
@@ -625,7 +625,7 @@ presets:
       q: 1.4
     eq_presence:
       freq: 2500
-      gain_db: 1.6
+      gain_db: 2.2
       q: 1.0
     eq_gloss:
       freq: 9500
@@ -639,7 +639,7 @@ presets:
       ratio: 6.0
       freq: 7300
       freq2: 4500
-      ratio2: 3.0
+      ratio2: 2.5
     warmth:
       drive_db: 5.0
       mix: 0.65
@@ -652,12 +652,12 @@ presets:
       threshold_db: -12.0
       ratio: 4.0
     harshness:
-      freq: 3500
-      threshold_db: -22.0
-      ratio: 4.0
+      freq: 4000
+      threshold_db: -18.0
+      ratio: 3.0
     eq_warm:
       freq: 240
-      gain_db: 3.0
+      gain_db: 2.5
       q: 0.8
     gain_db: 5.5
     silk:
@@ -674,7 +674,7 @@ presets:
       body_level_db: -6.0
       depth_pre_delay_ms: 35.0
       body_width: 0.45
-      shimmer_level_db: -30.0
+      shimmer_level_db: -20.0
     slap_delay:
       enabled: true
       time_s: 0.035
@@ -686,7 +686,7 @@ presets:
   mix:
     vocal_gain_db: 1.0
     inst_gain_db: -1.0
-    duck_db: 1.2
+    duck_db: 1.8
     vocal_lead_db: 1.5
   master:
     working_lufs: -18
@@ -804,7 +804,7 @@ presets:
       q: 1.4
     eq_presence:
       freq: 2500
-      gain_db: 1.6
+      gain_db: 2.2
       q: 1.0
     eq_gloss:
       freq: 9500
@@ -818,7 +818,7 @@ presets:
       ratio: 6.0
       freq: 7300
       freq2: 4500
-      ratio2: 3.0
+      ratio2: 2.5
     warmth:
       drive_db: 5.0
       mix: 0.65
@@ -831,12 +831,12 @@ presets:
       threshold_db: -12.0
       ratio: 4.0
     harshness:
-      freq: 3500
-      threshold_db: -22.0
-      ratio: 4.0
+      freq: 4000
+      threshold_db: -18.0
+      ratio: 3.0
     eq_warm:
       freq: 240
-      gain_db: 3.0
+      gain_db: 2.5
       q: 0.8
     gain_db: 5.5
     silk:
@@ -853,7 +853,7 @@ presets:
       body_level_db: -6.0
       depth_pre_delay_ms: 35.0
       body_width: 0.45
-      shimmer_level_db: -30.0
+      shimmer_level_db: -20.0
     slap_delay:
       enabled: true
       time_s: 0.035
@@ -865,7 +865,7 @@ presets:
   mix:
     vocal_gain_db: 1.0
     inst_gain_db: -1.0
-    duck_db: 1.2
+    duck_db: 1.8
     vocal_lead_db: 1.5
   master:
     working_lufs: -18
@@ -983,7 +983,7 @@ presets:
       q: 1.4
     eq_presence:
       freq: 2500
-      gain_db: 1.6
+      gain_db: 2.2
       q: 1.0
     eq_gloss:
       freq: 9500
@@ -997,7 +997,7 @@ presets:
       ratio: 6.0
       freq: 7300
       freq2: 4500
-      ratio2: 3.0
+      ratio2: 2.5
     warmth:
       drive_db: 5.0
       mix: 0.65
@@ -1010,12 +1010,12 @@ presets:
       threshold_db: -12.0
       ratio: 4.0
     harshness:
-      freq: 3500
-      threshold_db: -22.0
-      ratio: 4.0
+      freq: 4000
+      threshold_db: -18.0
+      ratio: 3.0
     eq_warm:
       freq: 240
-      gain_db: 3.0
+      gain_db: 2.5
       q: 0.8
     gain_db: 5.5
     silk:
@@ -1032,7 +1032,7 @@ presets:
       body_level_db: -6.0
       depth_pre_delay_ms: 35.0
       body_width: 0.45
-      shimmer_level_db: -30.0
+      shimmer_level_db: -20.0
     slap_delay:
       enabled: true
       time_s: 0.035
@@ -1044,7 +1044,7 @@ presets:
   mix:
     vocal_gain_db: 0.8
     inst_gain_db: -1.0
-    duck_db: 1.2
+    duck_db: 1.8
     vocal_lead_db: 1.5
   master:
     working_lufs: -18

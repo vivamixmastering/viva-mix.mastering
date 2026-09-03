@@ -534,6 +534,31 @@ def duck_under_vocal(inst, vocal, sr, depth_db=2.0, attack_ms=15.0, release_ms=1
         gain = gain[:, None]
     return (inst * gain).astype(np.float32)
 
+
+def duck_band_under_vocal(inst, vocal, sr, depth_db=2.0, lo=200.0, hi=500.0,
+                          attack_ms=15.0, release_ms=140.0):
+    """داکینگ باند-محدود (sidechain فرکانسی) — بیت فقط در باند lo..hi
+    (ناحیهٔ برخورد وکال و بیت، ۲۰۰–۵۰۰Hz) موقع اوج وکال پایین میاد، نه کل
+    طیف → وکال بدون له‌شدن بیت «روی بیت می‌نشینه».
+
+    ⚠️ باند با bandpass واقعی ساخته می‌شه (نه تفریق دو lowpass) — تفریق
+    دو lowpass به‌خاطر اختلاف فاز، فرکانس‌های خارج باند (مثل ۱۰۰Hz) رو
+    هم نشت می‌داد و داکینگ به‌اشتباه کل طیف رو کم می‌کرد."""
+    if inst.ndim != 2:
+        return inst
+    sos = spsig.butter(4, [lo, hi], btype="bandpass", fs=sr, output="sos")
+    band = spsig.sosfilt(sos, inst, axis=0).astype(np.float32)
+    rest = inst - band                     # بقیهٔ طیف (بازسازی کامل جبری)
+    env = env_follow(to_mono(vocal), sr, attack_ms, release_ms)
+    norm = env / (float(np.percentile(env, 95)) + 1e-9)
+    gr = depth_db * np.clip(norm, 0.0, 1.0)
+    gain = db2lin(-gr).astype(np.float32)[:, None]
+    del env, norm, gr
+    np.multiply(band, gain, out=band)
+    np.add(rest, band, out=rest)
+    del band
+    return rest.astype(np.float32)
+
 # ══════════════════ بلندی صدا (LUFS) ══════════════════
 
 # ضرایب رسمی K-weighting (ITU-R BS.1770-4) برای 48kHz — به‌جای pyloudnorm
@@ -1304,10 +1329,11 @@ def vocal_chain(x, sr, v):
 
     # ── ماژول‌های تکمیلی (شیشه‌ای/ابریشمی/مخملی) — همیشه روشن ──
     # ترتیب: اول تمیزکاری رزونانس → گرما/اکسایتر (رنگ) → ترانزینت (فرم‌دهی)
+    # نکته: formant_aware_warmth حذف شد چون گرما @240Hz رو دوباره روی
+    # eq_warm (+2.5dB @240) می‌چید → باند 240Hz دوبار بوست می‌خورد (+5.5dB)
+    # و ناچ‌های 1200/2500Hz هم وضوح ناحیهٔ ۱.۲–۳.۵kHz رو می‌بریدن.
     y = dynamic_resonance_eq(y, sr)
     rep.append("داینامیک EQ رزونانس‌های فردی (۳۰۰/۱۲۰۰/۳۵۰۰Hz)")
-    y = formant_aware_warmth(y, sr)
-    rep.append("گرمای حفظ‌کننده فرمنت (240Hz + ناچ فرمنت‌ها)")
     y = multiband_harmonic_exciter(y, sr)
     rep.append("اکسایتر چندباندی (گرما/وضوح/شیشه‌ای)")
     y = vocal_transient_designer(y, sr)
@@ -1754,8 +1780,9 @@ def mix_and_master(vocal, inst, sr, mx, master):
 
     duck_db = mx.get("duck_db", 0.0)
     if duck_db:
-        inst = duck_under_vocal(inst, vocal, sr, duck_db)
-        rep.append(f"جا باز کردن موزیک برای وکال (Ducking {duck_db}dB)")
+        inst = duck_band_under_vocal(inst, vocal, sr, duck_db,
+                                     lo=200.0, hi=500.0)
+        rep.append(f"داکینگ باند ۲۰۰–۵۰۰Hz برای وکال ({duck_db}dB)")
 
     vg = mx.get("vocal_gain_db", 0.0)
     ig = mx.get("inst_gain_db", -2.0)
@@ -1806,8 +1833,9 @@ def mix_only(vocal, inst, sr, mx):
 
     duck_db = mx.get("duck_db", 0.0)
     if duck_db:
-        inst = duck_under_vocal(inst, vocal, sr, duck_db)
-        rep.append(f"جا باز کردن بیت برای وکال (Ducking {duck_db}dB)")
+        inst = duck_band_under_vocal(inst, vocal, sr, duck_db,
+                                     lo=200.0, hi=500.0)
+        rep.append(f"داکینگ باند ۲۰۰–۵۰۰Hz برای وکال ({duck_db}dB)")
 
     vg = mx.get("vocal_gain_db", 0.0)
     ig = mx.get("inst_gain_db", 0.0)
