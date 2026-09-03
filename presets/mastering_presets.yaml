@@ -238,14 +238,14 @@ presets:
       mix: 0.45
     eq_low_shelf:
       freq: 120
-      gain_db: 2.5
+      gain_db: 0.0
     eq_dip:
       freq: 300
-      gain_db: -3.2
+      gain_db: -4.0
       q: 1.4
     eq_presence:
       freq: 2500
-      gain_db: 2.6
+      gain_db: 3.5
       q: 1.0
     eq_gloss:
       freq: 9500
@@ -261,13 +261,13 @@ presets:
       freq2: 4500
       ratio2: 2.5
     warmth:
-      drive_db: 5.0
+      drive_db: 3.0
       mix: 0.65
     air:
       freq: 12000
       drive_db: 2.8
       mix: 0.5
-    out_lufs: -12
+    out_lufs: -9.0
     deplosive:
       threshold_db: -12.0
       ratio: 4.0
@@ -277,7 +277,7 @@ presets:
       ratio: 3.0
     eq_warm:
       freq: 240
-      gain_db: 2.5
+      gain_db: -2.0
       q: 0.8
     gain_db: 5.5
     silk:
@@ -292,11 +292,11 @@ presets:
       enabled: true
       depth_level_db: -15.0
       body_level_db: -6.0
-      depth_pre_delay_ms: 35.0
+      depth_pre_delay_ms: 5.0
       body_width: 0.45
       shimmer_level_db: -16.0
     slap_delay:
-      enabled: true
+      enabled: false
       time_s: 0.035
       mix: 0.06
     air2:
@@ -618,14 +618,14 @@ presets:
       mix: 0.45
     eq_low_shelf:
       freq: 120
-      gain_db: 2.5
+      gain_db: 0.0
     eq_dip:
       freq: 300
-      gain_db: -3.2
+      gain_db: -4.0
       q: 1.4
     eq_presence:
       freq: 2500
-      gain_db: 2.6
+      gain_db: 3.5
       q: 1.0
     eq_gloss:
       freq: 9500
@@ -641,13 +641,13 @@ presets:
       freq2: 4500
       ratio2: 2.5
     warmth:
-      drive_db: 5.0
+      drive_db: 3.0
       mix: 0.65
     air:
       freq: 12000
       drive_db: 2.8
       mix: 0.5
-    out_lufs: -12
+    out_lufs: -9.0
     deplosive:
       threshold_db: -12.0
       ratio: 4.0
@@ -657,7 +657,7 @@ presets:
       ratio: 3.0
     eq_warm:
       freq: 240
-      gain_db: 2.5
+      gain_db: -2.0
       q: 0.8
     gain_db: 5.5
     silk:
@@ -672,11 +672,11 @@ presets:
       enabled: true
       depth_level_db: -15.0
       body_level_db: -6.0
-      depth_pre_delay_ms: 35.0
+      depth_pre_delay_ms: 5.0
       body_width: 0.45
       shimmer_level_db: -16.0
     slap_delay:
-      enabled: true
+      enabled: false
       time_s: 0.035
       mix: 0.06
     air2:
@@ -797,14 +797,14 @@ presets:
       mix: 0.45
     eq_low_shelf:
       freq: 120
-      gain_db: 2.5
+      gain_db: 0.0
     eq_dip:
       freq: 300
-      gain_db: -3.2
+      gain_db: -4.0
       q: 1.4
     eq_presence:
       freq: 2500
-      gain_db: 2.6
+      gain_db: 3.5
       q: 1.0
     eq_gloss:
       freq: 9500
@@ -820,13 +820,13 @@ presets:
       freq2: 4500
       ratio2: 2.5
     warmth:
-      drive_db: 5.0
+      drive_db: 3.0
       mix: 0.65
     air:
       freq: 12000
       drive_db: 2.8
       mix: 0.5
-    out_lufs: -12
+    out_lufs: -9.0
     deplosive:
       threshold_db: -12.0
       ratio: 4.0
@@ -836,7 +836,7 @@ presets:
       ratio: 3.0
     eq_warm:
       freq: 240
-      gain_db: 2.5
+      gain_db: -2.0
       q: 0.8
     gain_db: 5.5
     silk:
@@ -851,11 +851,11 @@ presets:
       enabled: true
       depth_level_db: -15.0
       body_level_db: -6.0
-      depth_pre_delay_ms: 35.0
+      depth_pre_delay_ms: 5.0
       body_width: 0.45
       shimmer_level_db: -16.0
     slap_delay:
-      enabled: true
+      enabled: false
       time_s: 0.035
       mix: 0.06
     air2:
@@ -976,14 +976,14 @@ presets:
       mix: 0.45
     eq_low_shelf:
       freq: 120
-      gain_db: 2.5
+      gain_db: 0.0
     eq_dip:
       freq: 300
-      gain_db: -3.2
+      gain_db: -4.0
       q: 1.4
     eq_presence:
       freq: 2500
-      gain_db: 2.6
+      gain_db: 3.5
       q: 1.0
     eq_gloss:
       freq: 9500
@@ -999,13 +999,13 @@ presets:
       freq2: 4500
       ratio2: 2.5
     warmth:
-      drive_db: 5.0
+      drive_db: 3.0
       mix: 0.65
     air:
       freq: 12000
       drive_db: 2.8
       mix: 0.5
-    out_lufs: -14
+    out_lufs: -9.0
     deplosive:
       threshold_db: -12.0
       ratio: 4.0
@@ -1015,7 +1015,7 @@ presets:
       ratio: 3.0
     eq_warm:
       freq: 240
-      gain_db: 2.5
+      gain_db: -2.0
       q: 0.8
     gain_db: 5.5
     silk:
@@ -1030,11 +1030,11 @@ presets:
       enabled: true
       depth_level_db: -15.0
       body_level_db: -6.0
-      depth_pre_delay_ms: 35.0
+      depth_pre_delay_ms: 5.0
       body_width: 0.45
       shimmer_level_db: -16.0
     slap_delay:
-      enabled: true
+      enabled: false
       time_s: 0.035
       mix: 0.06
     air2:

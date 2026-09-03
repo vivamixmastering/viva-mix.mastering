@@ -857,7 +857,8 @@ def _body_layer(dry, sr, body_width=0.45, drive_db=4.5):
     b = np.asarray(
         Compressor(threshold_db=-22.0, ratio=5.0,
                    attack_ms=22.0, release_ms=120.0)(b, sr), dtype=np.float32)
-    b = PeakFilter(cutoff_frequency_hz=250.0, gain_db=3.0, q=1.2)(b, sr)
+    # +3dB@250 قبلاً به باند ۱۵۰–۳۰۰Hz (ناحیهٔ گلآلود) میافزود → کات شد.
+    b = PeakFilter(cutoff_frequency_hz=250.0, gain_db=-2.0, q=1.2)(b, sr)
     b = HighShelfFilter(cutoff_frequency_hz=5000.0, gain_db=-2.0)(b, sr)
     # اشباع نامتقارنِ ملایم (هارمونیک زوج ظریف) → مخملی بدون اکتاو/سنجابی.
     # asym زیاد (0.3) هارمونیک 2f رو غالب می‌کرد → صدای نازال/اکتاو بالا.
