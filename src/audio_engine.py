@@ -1010,7 +1010,7 @@ def multiband_harmonic_exciter(x, sr, cfg=None):
     اورسمپل → نصف رم)؛ فقط باند بالا اورسمپل ۲× می‌گیره (ضد الیاس)."""
     cfg = cfg or {}
     bands = cfg.get("bands", ((200.0, 800.0, 0.08), (2000.0, 5000.0, 0.03),
-                              (8000.0, 16000.0, 0.12)))
+                              (8000.0, 16000.0, 0.18)))
     single = x.ndim == 1
     y = to_stereo(x).astype(np.float32)
     for lo, hi, drive in bands:
