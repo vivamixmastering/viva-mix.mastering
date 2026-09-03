@@ -854,11 +854,9 @@ def _body_layer(dry, sr, body_width=0.45, drive_db=4.5):
     مونو پردازش می‌شه؛ عرض در پایان با آل‌پس ساخته می‌شه (body_width).
     """
     b = to_mono(dry).astype(np.float32, copy=False)
-    # اتک سریع (۸ms) — اتک کند باعث می‌شد اول کلمه بدون فشرده‌سازی رد بشه و
-    # حس «لگ/تاخیر» نسبت به لایهٔ رویی ایجاد کنه (راهنمای استودیویی).
     b = np.asarray(
         Compressor(threshold_db=-22.0, ratio=5.0,
-                   attack_ms=8.0, release_ms=120.0)(b, sr), dtype=np.float32)
+                   attack_ms=22.0, release_ms=120.0)(b, sr), dtype=np.float32)
     b = PeakFilter(cutoff_frequency_hz=250.0, gain_db=3.0, q=1.2)(b, sr)
     b = HighShelfFilter(cutoff_frequency_hz=5000.0, gain_db=-2.0)(b, sr)
     # اشباع نامتقارنِ ملایم (هارمونیک زوج ظریف) → مخملی بدون اکتاو/سنجابی.
@@ -926,13 +924,13 @@ def add_three_layer(presence, dry, sr, cfg):
     # ── Sidechain: پوش لایهٔ رویی → داک فضاسازی ──
     env = env_follow(to_mono(presence), sr, attack_ms=6.0, release_ms=150.0)
     env = env / (float(np.percentile(env, 95)) + 1e-9)
-    duck = (np.float32(0.15) * np.clip(env, 0.0, 1.0)).astype(np.float32)
+    duck = (np.float32(0.4) * np.clip(env, 0.0, 1.0)).astype(np.float32)
     del env
     sg = np.power(np.float32(10.0), -duck / np.float32(20.0))[:, None]
     del duck
 
     # ── لایهٔ Depth ──
-    depth = _depth_layer(dry, sr, float(cfg.get("depth_pre_delay_ms", 0.0)))
+    depth = _depth_layer(dry, sr, float(cfg.get("depth_pre_delay_ms", 8.0)))
     if len(depth) > n:
         depth = depth[:n]
     elif len(depth) < n:
@@ -970,11 +968,10 @@ def add_three_layer(presence, dry, sr, cfg):
     np.add(presence, sh, out=presence)
     del sh, sg
 
-    # ── Glue (چسباندن لایه‌ها) — کمپرسور نرم سبک CLA-2A (اتک آرام،
-    # ریلیز اتوماتیک، ۱–۲dB) تا همهٔ لایه‌ها مثل یک ساز واحد شنیده بشن ──
+    # ── Glue (چسباندن لایه‌ها) — کمپرسور آرام، اتک ۳۰ms، ریلیز نرم ──
     presence = np.asarray(
-        Compressor(threshold_db=-20.0, ratio=1.5, attack_ms=40.0,
-                   release_ms=300.0)(presence, sr), dtype=np.float32)
+        Compressor(threshold_db=-20.0, ratio=2.0, attack_ms=30.0,
+                   release_ms=250.0)(presence, sr), dtype=np.float32)
 
     # گارد پیک
     pk = float(np.max(np.abs(presence)))
@@ -1304,24 +1301,6 @@ def vocal_chain(x, sr, v):
         rep.append(f"کمپرسور موازی سبک NY — حجم و چگالی صدا "
                    f"({int(par.get('mix', 0.25) * 100)}٪)")
 
-    # ── دی‌اسر قبل از اکولایزر (مهم) — اول «س/ش/ت» مهار بشه تا بوستِ
-    # درخشش/هوا بعداً سوت رو بزرگ‌نمایی نکنه و گوش شنونده خسته نشه. ──
-    de = v.get("deess")
-    if de:
-        y = block_apply(
-            lambda blk: deesser(blk, sr, de["freq"], de["threshold_db"],
-                                de["ratio"], makeup_db=de.get("makeup_db", 0.0)),
-            y, sr)
-        rep.append(f"دی‌اسر (کنترل سوت «س») @ {de['freq']}Hz")
-        # باند دوم ملایم (رزونانس میانی ۴–۵kHz) — ابریشمی‌تر، بدون خفه‌کردن
-        f2 = de.get("freq2")
-        if f2:
-            y = block_apply(
-                lambda blk: deesser(blk, sr, f2, de.get("threshold_db", -24.0),
-                                    de.get("ratio2", 3.0)),
-                y, sr)
-            rep.append(f"دی‌اسر باند دوم @ {int(f2)}Hz (ابریشمی)")
-
     ls = v.get("eq_low_shelf")
     if ls:
         y = LowShelfFilter(cutoff_frequency_hz=ls["freq"],
@@ -1357,6 +1336,22 @@ def vocal_chain(x, sr, v):
         y = HighShelfFilter(cutoff_frequency_hz=airs["freq"],
                             gain_db=airs["gain_db"])(y, sr)
         rep.append(f"درخشش بالا ({airs['gain_db']:+g}dB @ {airs['freq']}Hz)")
+
+    de = v.get("deess")
+    if de:
+        y = block_apply(
+            lambda blk: deesser(blk, sr, de["freq"], de["threshold_db"],
+                                de["ratio"], makeup_db=de.get("makeup_db", 0.0)),
+            y, sr)
+        rep.append(f"دی‌اسر (کنترل سوت «س») @ {de['freq']}Hz")
+        # باند دوم ملایم (رزونانس میانی ۴–۵kHz) — ابریشمی‌تر، بدون خفه‌کردن
+        f2 = de.get("freq2")
+        if f2:
+            y = block_apply(
+                lambda blk: deesser(blk, sr, f2, de.get("threshold_db", -24.0),
+                                    de.get("ratio2", 3.0)),
+                y, sr)
+            rep.append(f"دی‌اسر باند دوم @ {int(f2)}Hz (ابریشمی)")
 
     w = v.get("warmth")
     if w:
