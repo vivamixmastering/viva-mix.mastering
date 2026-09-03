@@ -292,7 +292,7 @@ presets:
       enabled: true
       depth_level_db: -15.0
       body_level_db: -6.0
-      depth_pre_delay_ms: 35.0
+      depth_pre_delay_ms: 8.0
       body_width: 0.45
       shimmer_level_db: -16.0
     slap_delay:
@@ -303,6 +303,10 @@ presets:
       freq: 16000
       drive_db: 1.2
       mix: 0.4
+    microshift:
+      enabled: true
+      mix: 0.28
+      cents: 7.0
   mix:
     vocal_gain_db: 0.9
     inst_gain_db: -1.0
@@ -672,7 +676,7 @@ presets:
       enabled: true
       depth_level_db: -15.0
       body_level_db: -6.0
-      depth_pre_delay_ms: 35.0
+      depth_pre_delay_ms: 8.0
       body_width: 0.45
       shimmer_level_db: -16.0
     slap_delay:
@@ -683,6 +687,10 @@ presets:
       freq: 16000
       drive_db: 1.2
       mix: 0.4
+    microshift:
+      enabled: true
+      mix: 0.28
+      cents: 7.0
   mix:
     vocal_gain_db: 1.0
     inst_gain_db: -1.0
@@ -851,7 +859,7 @@ presets:
       enabled: true
       depth_level_db: -15.0
       body_level_db: -6.0
-      depth_pre_delay_ms: 35.0
+      depth_pre_delay_ms: 8.0
       body_width: 0.45
       shimmer_level_db: -16.0
     slap_delay:
@@ -862,6 +870,10 @@ presets:
       freq: 16000
       drive_db: 1.2
       mix: 0.4
+    microshift:
+      enabled: true
+      mix: 0.28
+      cents: 7.0
   mix:
     vocal_gain_db: 1.0
     inst_gain_db: -1.0
@@ -1030,7 +1042,7 @@ presets:
       enabled: true
       depth_level_db: -15.0
       body_level_db: -6.0
-      depth_pre_delay_ms: 35.0
+      depth_pre_delay_ms: 8.0
       body_width: 0.45
       shimmer_level_db: -16.0
     slap_delay:
@@ -1041,6 +1053,10 @@ presets:
       freq: 16000
       drive_db: 1.2
       mix: 0.4
+    microshift:
+      enabled: true
+      mix: 0.28
+      cents: 7.0
   mix:
     vocal_gain_db: 0.8
     inst_gain_db: -1.0

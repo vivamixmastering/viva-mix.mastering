@@ -863,8 +863,10 @@ def _body_layer(dry, sr, body_width=0.45, drive_db=4.5):
     # asym زیاد (0.3) هارمونیک 2f رو غالب می‌کرد → صدای نازال/اکتاو بالا.
     b = saturation(b, sr, drive_db=drive_db, mix=0.6, asym=0.12)
     # دیلی کوتاه + ریورب سبک — لایهٔ میانی دیگه خشک نباشه (حس فضا/عمق)
+    # ⚠️ تأخیر قبلی ۱۳۰ms حس «لگ/اکو» نسبت به لایهٔ رویی می‌داد → کوتاه شد
+    # به ۴۵ms با فیدبک کم تا بلافاصله با ضربهٔ وکال هم‌راستا باشه.
     from pedalboard import Delay, Reverb
-    b = np.asarray(Delay(delay_seconds=0.13, feedback=0.25, mix=0.18)(b, sr),
+    b = np.asarray(Delay(delay_seconds=0.045, feedback=0.15, mix=0.12)(b, sr),
                    dtype=np.float32)
     b = np.asarray(Reverb(room_size=0.35, damping=0.5,
                           wet_level=0.2, dry_level=1.0, width=1.0)(b, sr),
@@ -881,11 +883,14 @@ def shimmer_layer(dry, sr):
     رو از EQ لایهٔ رویی می‌گیریم، نه از اکتاو اینجا."""
     from pedalboard import Reverb
     m = to_mono(dry).astype(np.float32, copy=False)
-    # فقط باند هوا (بالای ۴kHz) — بدون تغییر زیروبمی، بدون فرمت جابه‌جا
+    # فقط باند هوا (۴–۱۲kHz) — بدون تغییر زیروبمی، بدون فرمت جابه‌جا.
+    # های‌کات ۱۲kHz اضافه شد تا صدای «س» (sss) تیز نشه.
     sos = spsig.butter(4, 4000.0, btype="high", fs=sr, output="sos")
     m = spsig.sosfilt(sos, m, axis=0).astype(np.float32)
     m = Reverb(room_size=0.6, damping=0.5,
                wet_level=1.0, dry_level=0.0, width=1.0)(m, sr)
+    m = LowpassFilter(cutoff_frequency_hz=12000.0)(
+        np.ascontiguousarray(m, dtype=np.float32), sr)
     return _stereo_spread(np.asarray(m, dtype=np.float32), sr, width=1.0)
 
 
@@ -905,13 +910,27 @@ def add_three_layer(presence, dry, sr, cfg):
     depth و body از dry (وکال خام) ساخته می‌شن و نسبت به سطحِ presence
     (مرجع 0dB) با -20dB و -10dB جمع می‌شن → عمق و چندبعدی بودن.
     ساخت پشت‌سرهم + جمع درجا برای مصرف رم کم (سرویس ۱ گیگ).
+
+    ⚙️ Sidechain: لایه‌های فضاساز (depth/body/shimmer) زیر اوجِ لایهٔ رویی
+    کمی داک می‌شن تا دمِ ریورب روی ضربهٔ وکال نریزه → چسبندگی ریتمیک.
+    ⚙️ Glue: در پایان یک کمپرسور آرام (اتک ۳۰ms) همهٔ لایه‌ها رو به هم
+    می‌چسبونه تا مثل یک ساز واحد شنیده بشن.
     """
+    from pedalboard import Compressor
     presence = to_stereo(presence).astype(np.float32)
     p_rms = float(np.sqrt(np.mean(np.square(presence)) + 1e-12))
     n = len(presence)
 
+    # ── Sidechain: پوش لایهٔ رویی → داک فضاسازی ──
+    env = env_follow(to_mono(presence), sr, attack_ms=6.0, release_ms=150.0)
+    env = env / (float(np.percentile(env, 95)) + 1e-9)
+    duck = (np.float32(0.4) * np.clip(env, 0.0, 1.0)).astype(np.float32)
+    del env
+    sg = np.power(np.float32(10.0), -duck / np.float32(20.0))[:, None]
+    del duck
+
     # ── لایهٔ Depth ──
-    depth = _depth_layer(dry, sr, float(cfg.get("depth_pre_delay_ms", 35.0)))
+    depth = _depth_layer(dry, sr, float(cfg.get("depth_pre_delay_ms", 8.0)))
     if len(depth) > n:
         depth = depth[:n]
     elif len(depth) < n:
@@ -919,6 +938,7 @@ def add_three_layer(presence, dry, sr, cfg):
     d_rms = float(np.sqrt(np.mean(np.square(depth)) + 1e-12))
     if d_rms > 1e-9:
         depth = depth * np.float32(db2lin(cfg.get("depth_level_db", -20.0)) * p_rms / d_rms)
+    np.multiply(depth, sg, out=depth)          # داک sidechain
     np.add(presence, depth, out=presence)
     del depth
 
@@ -931,6 +951,7 @@ def add_three_layer(presence, dry, sr, cfg):
     b_rms = float(np.sqrt(np.mean(np.square(body)) + 1e-12))
     if b_rms > 1e-9:
         body = body * np.float32(db2lin(cfg.get("body_level_db", -10.0)) * p_rms / b_rms)
+    np.multiply(body, sg, out=body)            # داک sidechain
     np.add(presence, body, out=presence)
     del body
 
@@ -943,8 +964,14 @@ def add_three_layer(presence, dry, sr, cfg):
     s_rms = float(np.sqrt(np.mean(np.square(sh)) + 1e-12))
     if s_rms > 1e-9:
         sh = sh * np.float32(db2lin(cfg.get("shimmer_level_db", -29.0)) * p_rms / s_rms)
+    np.multiply(sh, sg, out=sh)                # داک sidechain
     np.add(presence, sh, out=presence)
-    del sh
+    del sh, sg
+
+    # ── Glue (چسباندن لایه‌ها) — کمپرسور آرام، اتک ۳۰ms، ریلیز نرم ──
+    presence = np.asarray(
+        Compressor(threshold_db=-20.0, ratio=2.0, attack_ms=30.0,
+                   release_ms=250.0)(presence, sr), dtype=np.float32)
 
     # گارد پیک
     pk = float(np.max(np.abs(presence)))
@@ -1009,7 +1036,7 @@ def multiband_harmonic_exciter(x, sr, cfg=None):
     باندهای پایین/میانی (۲× فرکانس < ۱۹kHz) مستقیم مربع می‌شن (بدون
     اورسمپل → نصف رم)؛ فقط باند بالا اورسمپل ۲× می‌گیره (ضد الیاس)."""
     cfg = cfg or {}
-    bands = cfg.get("bands", ((200.0, 800.0, 0.08), (2000.0, 5000.0, 0.03),
+    bands = cfg.get("bands", ((200.0, 800.0, 0.08), (2000.0, 5000.0, 0.05),
                               (8000.0, 16000.0, 0.18)))
     single = x.ndim == 1
     y = to_stereo(x).astype(np.float32)
@@ -1090,6 +1117,46 @@ def micro_pitch_vibrato(x, sr, cfg=None):
     del ph
     np.multiply(out, g, out=out)
     return (out[:, 0] if single else out).astype(np.float32, copy=False)
+
+
+def _static_detune(x, cents):
+    """دیتون استاتیک (بدون LFO) با resampling نرم — طول دقیقاً حفظ می‌شه.
+    برای cents مثبت (زیرتر) فاکتور >1 → با edge-pad خوانده می‌شه تا آخرین
+    نمونه ثابت نمونه (بدون آرتیفکت clamp در انتها)."""
+    ratio = float(2.0 ** (cents / 1200.0))
+    n = len(x)
+    pos = (np.arange(n, dtype=np.float32) * np.float32(ratio))
+    if ratio > 1.0:
+        pad = int(n * (ratio - 1.0)) + 2
+        src = np.pad(x, (0, pad), mode="edge")
+    else:
+        src = x
+    idx = np.arange(len(src), dtype=np.float32)
+    return np.interp(pos, idx, src).astype(np.float32)
+
+
+def microshift(x, sr, mix=0.28, cents=7.0):
+    """MicroShift/کُر استریو (سبک Soundtoys MicroShift / Dimension D) — برای
+    لایهٔ رویی: دو کپی دیتون‌شدهٔ استاتیک (+cents چپ، -cents راست) + تأخیر
+    Haas کوتاه ضدّفاز → عرض و درخشش «کریستالی/شیشه‌ای» بدون دور/خیس شدن.
+    کپی‌ها موازی و کم‌میکس می‌شن؛ صدای اصلی جلو می‌مونه."""
+    single = x.ndim == 1
+    one = x.ndim == 2 and x.shape[1] == 1
+    xx = to_stereo(x).astype(np.float32)
+    m = (xx[:, 0] + xx[:, 1]) * np.float32(0.5)
+    up = _static_detune(m, +cents)
+    dn = _static_detune(m, -cents)
+    dL = int(0.012 * sr)
+    dR = int(0.020 * sr)
+    L = np.roll(up, dL); L[:dL] = 0.0
+    R = np.roll(dn, dR); R[:dR] = 0.0
+    wet = np.stack([L, R], axis=1).astype(np.float32)
+    out = xx * np.float32(1.0 - mix) + wet * np.float32(mix)
+    if single:
+        return out[:, 0]
+    if one:
+        return out[:, :1]
+    return out.astype(np.float32)
 
 
 def dynamic_stereo_width(x, sr, cfg=None):
@@ -1378,6 +1445,18 @@ def vocal_chain(x, sr, v):
         if pk > 0.98:                      # گارد پیک — بدون دیستورت
             y = y * np.float32(0.98 / pk)
         rep.append(f"گین خروجی +{g:g}dB (قدرت بیشتر)")
+
+    # ── MicroShift/کُر (لایهٔ رویی) — عرض و درخشش کریستالی/شیشه‌ای ──
+    # قبل از سه‌لایه اعمال می‌شه تا فقط لایهٔ رویی (presence) پهن/دیتون بشه؛
+    # depth/body از وکال خام (dry_ref) ساخته می‌شن و دیتون نمی‌خورن.
+    ms = v.get("microshift")
+    if ms and (not isinstance(ms, dict) or ms.get("enabled", True)):
+        mc = ms if isinstance(ms, dict) else {}
+        y = block_apply(
+            lambda blk: microshift(blk, sr, mc.get("mix", 0.28),
+                                   mc.get("cents", 7.0)),
+            y, sr, block_s=30.0)
+        rep.append("MicroShift/کُر (پهن و شیشه‌ای — لایهٔ رویی)")
 
     # ── معماری سه‌لایه (Depth/Body/Presence) — عمق و چندبعدی بودن ──
     # جایگزین بک‌ویسِ دیتون‌دار قبلی؛ فضاسازی و ضخامت از لایه‌های Depth/Body
