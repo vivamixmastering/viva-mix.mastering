@@ -129,7 +129,11 @@ def lowpass(x, sr, freq, order=2):
 
 def env_follow(x, sr, attack_ms=10.0, release_ms=120.0):
     """پوش دامنه با max-pool سبک (نرخ ~۳۴۴Hz) — مصرف رم ناچیز و مستقل از طول"""
-    a = np.abs(x.mean(axis=1) if x.ndim == 2 else x).astype(np.float32)
+    a = x.mean(axis=1) if x.ndim == 2 else x
+    if a.dtype == np.float32:
+        np.abs(a, out=a)          # درجا
+    else:
+        a = np.abs(a)
     ds = 128
     n = len(a)
     pad = (-n) % ds
@@ -156,7 +160,6 @@ def _band_deess(x, sr, lo_hz, hi_hz, threshold_db, ratio,
     hp = highpass(x, sr, lo_hz, order=4)
     band = lowpass(hp, sr, hi_hz, order=4)
     del hp
-    rest = x - band
     env = env_follow(band, sr, attack_ms, release_ms)
     over = np.maximum(lin2db(env) - np.float32(threshold_db), 0.0)
     gr = over * (1.0 - 1.0 / ratio)
@@ -166,10 +169,12 @@ def _band_deess(x, sr, lo_hz, hi_hz, threshold_db, ratio,
     del env, over, gr
     if gain.ndim == 1 and x.ndim == 2:
         gain = gain[:, None]
+    # out = (x - band) + band*gain = x + band*(gain - 1)  — بدون آرایهٔ rest جدا
+    np.subtract(gain, np.float32(1.0), out=gain)
     np.multiply(band, gain, out=band)
-    np.add(rest, band, out=rest)
+    np.add(x, band, out=x)
     del band
-    return rest.astype(np.float32)
+    return x.astype(np.float32)
 
 
 def deesser(x, sr, freq=6200.0, threshold_db=-24.0, ratio=5.0,
@@ -219,13 +224,16 @@ def _upsample_zerostuff(x, factor):
     return out
 
 
-def saturation(x, sr, drive_db=3.0, mix=0.3, asym=1.15):
-    """اشباع نرم لامپی — هارمونیک‌های زوج + فرد
+def saturation(x, sr, drive_db=3.0, mix=0.3, asym=0.0):
+    """اشباع نرم لامپی — هارمونیک زوج + فرد
     اورسمپلینگ ۲× با صفرگذاری + ضد الیاس ۱۹kHz (بدون الیاسینگ/هیس).
 
-    نسخهٔ بهینهٔ رم: tanh درجا روی یک آرایه (به‌جای چند آرایهٔ موازی ۲×).
-    asym (غیرقرینگی ۱.۱۵) حذف شد چون آرایهٔ اضافه می‌ساخت؛ کاراکتر گرمِ
-    لامپی از خود tanh + mix میاد و عملاً تغییری محسوس نیست."""
+    asym = 0  → tanh متقارن (هارمونیک فرد — تیز/روشن)
+    asym > 0  → بایاس درجه‌دوم (x + a·x²) قبل از tanh → هارمونیک زوج غالب
+                = «صدای لامپی گرم/مخملی» به‌جای «دیستورشن تخت». چون x²
+                جریان مستقیم می‌سازه، بعدش یه DC-blocker سبک اعمال می‌شه.
+
+    نسخهٔ بهینهٔ رم: tanh درجا روی یک آرایه (به‌جای چند آرایهٔ موازی ۲×)."""
     single = x.ndim == 1
     if single:
         x = x[:, None]
@@ -233,10 +241,17 @@ def saturation(x, sr, drive_db=3.0, mix=0.3, asym=1.15):
     g = float(db2lin(drive_db))
     norm = np.float32(1.0 / float(np.tanh(g)))
     np.multiply(up, g, out=up)          # مقیاس با drive (درجا)
+    if asym:
+        sq = up * up                    # بایاس درجه‌دوم → هارمونیک زوج
+        np.multiply(sq, np.float32(asym), out=sq)
+        np.add(up, sq, out=up)
+        del sq
     np.tanh(up, out=up)                 # tanh درجا
     np.multiply(up, norm, out=up)       # نرمال‌سازی unity-gain (درجا)
     up = lowpass(up, sr * 2, 19000.0)   # ضد الیاس (آرایهٔ جدید ۲×)
     up = up[::2]
+    if asym:
+        up = highpass(up, sr, 20.0)     # حذف DC ناشی از بایاس درجه‌دوم
     n = min(len(x), len(up))
     out = (1.0 - mix) * x[:n] + mix * up[:n]
     return (out[:, 0] if single else out).astype(np.float32)
@@ -813,11 +828,27 @@ def _body_layer(dry, sr, body_width=0.45, drive_db=4.5):
     b = to_mono(dry).astype(np.float32, copy=False)
     b = np.asarray(
         Compressor(threshold_db=-22.0, ratio=5.0,
-                   attack_ms=15.0, release_ms=120.0)(b, sr), dtype=np.float32)
+                   attack_ms=22.0, release_ms=120.0)(b, sr), dtype=np.float32)
     b = PeakFilter(cutoff_frequency_hz=250.0, gain_db=3.0, q=1.2)(b, sr)
     b = HighShelfFilter(cutoff_frequency_hz=5000.0, gain_db=-2.0)(b, sr)
-    b = saturation(b, sr, drive_db=drive_db, mix=0.6)
+    # اشباع نامتقارن (هارمونیک زوج) به‌جای tanh متقارن → گرم/مخملی نه تیز
+    b = saturation(b, sr, drive_db=drive_db, mix=0.6, asym=0.15)
     return _stereo_spread(b, sr, width=float(body_width))
+
+
+def shimmer_layer(dry, sr):
+    """لایهٔ Shimmer — یک اکتاو پیچ‌شیفت بالا + ریورب کوتاه، خیلی محو.
+
+    حس «درخشش شیشه‌ای» بدون دستکاری EQ مستقیم: یه هارمونیک اکتاو-بالا
+    خیلی محو که زیر لایهٔ Depth می‌نشینه. مونو پردازش و در پایان با
+    آل‌پس پهن می‌شه (کم‌مصرف)."""
+    from pedalboard import PitchShift, Reverb
+    m = to_mono(dry).astype(np.float32, copy=False)
+    m = np.asarray(PitchShift(semitones=12.0)(m, sr), dtype=np.float32)
+    m = HighpassFilter(cutoff_frequency_hz=2000.0)(m, sr)
+    m = Reverb(room_size=0.6, damping=0.5,
+               wet_level=1.0, dry_level=0.0, width=1.0)(m, sr)
+    return _stereo_spread(np.asarray(m, dtype=np.float32), sr, width=1.0)
 
 
 def slap_delay(y, sr, time_s=0.035, mix=0.06):
@@ -865,11 +896,182 @@ def add_three_layer(presence, dry, sr, cfg):
     np.add(presence, body, out=presence)
     del body
 
+    # ── لایهٔ Shimmer (درخشش شیشه‌ای — خیلی محو) ──
+    sh = shimmer_layer(dry, sr)
+    if len(sh) > n:
+        sh = sh[:n]
+    elif len(sh) < n:
+        sh = np.pad(sh, ((0, n - len(sh)), (0, 0)))
+    s_rms = float(np.sqrt(np.mean(np.square(sh)) + 1e-12))
+    if s_rms > 1e-9:
+        sh = sh * np.float32(db2lin(cfg.get("shimmer_level_db", -29.0)) * p_rms / s_rms)
+    np.add(presence, sh, out=presence)
+    del sh
+
     # گارد پیک
     pk = float(np.max(np.abs(presence)))
     if pk > 0.985:
         presence = presence * np.float32(0.985 / pk)
     return presence.astype(np.float32)
+
+
+# ══════════════════ ماژول‌های تکمیلی وکال (شیشه‌ای/ابریشمی/مخملی) ══════════════════
+
+def _sos_band(lo, hi, fs, btype="bandpass", order=4):
+    """فیلتر butter با ضرایب float32 (خروجی sosfilt float32 بمونه — نصف رم)."""
+    sos = spsig.butter(order, [lo, hi], btype=btype, fs=fs, output="sos")
+    return sos.astype(np.float32)
+
+
+def dynamic_resonance_eq(x, sr, cfg=None):
+    """Dynamic EQ روی رزونانس‌های فردی (۳۰۰/۱۲۰۰/۳۵۰۰Hz) — کات فقط وقتی
+    انرژی باند از آستانه رد بشه، نه همیشه → صدا در حالت عادی طبیعی می‌مونه.
+
+    بر پایهٔ _band_deess (همون هستهٔ دی‌اسر باندی) — برداری و کم‌مصرف."""
+    cfg = cfg or {}
+    freqs = cfg.get("freqs", ((300.0, 2.0, -3.5), (1200.0, 2.5, -2.5), (3500.0, 2.0, -2.0)))
+    thr = float(cfg.get("threshold_db", -18.0))
+    att = float(cfg.get("attack_ms", 8.0))
+    rel = float(cfg.get("release_ms", 100.0))
+    y = x
+    for fc, q, maxcut in freqs:
+        bw = fc / q
+        lo = max(20.0, fc - bw / 2.0)
+        hi = fc + bw / 2.0
+        y = _band_deess(y, sr, lo, hi, thr, 6.0, att, rel, max_cut_db=abs(maxcut))
+    return y
+
+
+def formant_aware_warmth(x, sr, cfg=None):
+    """گرمای حفظ‌کنندهٔ فرمنت — گرما @240Hz + ناچ دور فرمنت‌های تقریبی
+    (۷۰۰/۱۲۰۰/۲۵۰۰Hz) تا تیمبر/فرمنت جابه‌جا نشه. (تقریب عملی، نه LPC)."""
+    cfg = cfg or {}
+    warmth_db = float(cfg.get("warmth_db", 2.5))
+    warmth_freq = float(cfg.get("warmth_freq", 240.0))
+    notches = cfg.get("notch_freqs", (700.0, 1200.0, 2500.0))
+    width = float(cfg.get("notch_width_hz", 150.0))
+    warmed = PeakFilter(cutoff_frequency_hz=warmth_freq, gain_db=warmth_db,
+                        q=1.2)(x, sr)
+    added = warmed - x
+    del warmed
+    for f in notches:
+        sos = _sos_band(f - width / 2.0, f + width / 2.0, sr,
+                        btype="bandstop", order=2)
+        added = spsig.sosfilt(sos, added, axis=0).astype(np.float32)
+    return (x + added).astype(np.float32)
+
+
+
+
+def multiband_harmonic_exciter(x, sr, cfg=None):
+    """اکسایتر چندباندی — به هر باند جدا هارمونیک زوج اضافه می‌کنه:
+    پایین (گرما)، میانی (وضوح)، بالا (شیشه‌ای). فقط هارمونیک اضافه‌شده
+    جمع می‌شه، نه کل باند دوباره.
+
+    باندهای پایین/میانی (۲× فرکانس < ۱۹kHz) مستقیم مربع می‌شن (بدون
+    اورسمپل → نصف رم)؛ فقط باند بالا اورسمپل ۲× می‌گیره (ضد الیاس)."""
+    cfg = cfg or {}
+    bands = cfg.get("bands", ((200.0, 800.0, 0.08), (2000.0, 5000.0, 0.03),
+                              (8000.0, 16000.0, 0.12)))
+    single = x.ndim == 1
+    y = to_stereo(x).astype(np.float32)
+    for lo, hi, drive in bands:
+        sos = _sos_band(lo, hi, sr, btype="bandpass", order=4)
+        band = spsig.sosfilt(sos, y, axis=0).astype(np.float32)
+        p = float(np.max(np.abs(band))) + 1e-9
+        # مربع مستقیم (هارمونیک زوج) + حذف DC؛ برای باند بالا یک LPF ملایم
+        # ضد الیاس (بدون اورسمپل ۲× → نصف رم).
+        harm = band * band
+        np.multiply(harm, np.float32(drive / p), out=harm)
+        if hi * 2.0 >= 19000.0:
+            harm = lowpass(harm, sr, 18000.0)
+        harm = highpass(harm, sr, 20.0)
+        y = y + harm
+        del band, harm
+    return (y[:, 0] if single else y).astype(np.float32)
+
+
+def vocal_transient_designer(x, sr, cfg=None):
+    """نرم‌کردن Attack کانسوننت‌های بی‌صدا (پ/ت/ک/چ) فقط در باند ۲–۸kHz
+    بدون دست‌زدن به واکه‌ها → مستقیم حس مخملی. برداری با env_follow."""
+    cfg = cfg or {}
+    red = float(cfg.get("attack_reduction", 0.35))
+    lo, hi = cfg.get("detect_band", (2000.0, 8000.0))
+    att = float(cfg.get("attack_ms", 3.0))
+    rel = float(cfg.get("release_ms", 40.0))
+    sos = _sos_band(lo, hi, sr, btype="bandpass", order=4)
+    band = spsig.sosfilt(sos, x, axis=0).astype(np.float32)
+    e_fast = env_follow(band, sr, attack_ms=att, release_ms=rel)
+    e_slow = env_follow(band, sr, attack_ms=att * 4.0, release_ms=rel * 4.0)
+    trans = np.maximum(e_fast - e_slow, 0.0)
+    del e_fast, e_slow, band
+    peak = float(np.percentile(trans, 99)) + 1e-9
+    gr = 1.0 - red * (trans / peak)
+    del trans
+    if x.ndim == 2:
+        gr = gr[:, None]
+    return (x * gr).astype(np.float32)
+
+
+def micro_pitch_vibrato(x, sr, cfg=None):
+    """لرزش ریز پیچ (±۴ سنت @5Hz) روی لایهٔ موازی محو (-24dB) — حس زنده
+    بدون بی‌ثباتی محسوس. با resampling نرم (np.interp).
+
+    بهینهٔ رم: فقط phase سراسری (float32) full-length می‌مونه؛ interp
+    بلوکی انجام می‌شه تا آرایه‌های موقت float64 (خروجی np.interp) فقط
+    به اندازهٔ بلوک ۳۰ ثانیه‌ای باشن، نه کل فایل."""
+    cfg = cfg or {}
+    rate = float(cfg.get("rate_hz", 5.0))
+    depth_cents = float(cfg.get("depth_cents", 4.0))
+    level_db = float(cfg.get("mix_level_db", -24.0))
+    single = x.ndim == 1
+    xx = to_stereo(x)
+    if xx.dtype != np.float32:
+        xx = xx.astype(np.float32)
+    n = len(xx)
+    nch = xx.shape[1]
+    # phase سراسری (مونو) — ساخته‌شده مرحله‌ای درجا
+    ph = np.arange(n, dtype=np.float32)
+    np.multiply(ph, np.float32(2.0 * np.pi * rate / sr), out=ph)
+    np.sin(ph, out=ph)                              # LFO
+    np.multiply(ph, np.float32(depth_cents / 1200.0), out=ph)  # نیم‌پرده تقریبی
+    np.add(ph, np.float32(1.0), out=ph)
+    np.cumsum(ph, out=ph)                           # فاز تجمعی
+    np.multiply(ph, np.float32((n - 1) / (float(ph[-1]) + 1e-9)), out=ph)
+    g = np.float32(db2lin(level_db))
+    out = np.empty_like(xx)
+    blk = int(30.0 * sr)
+    margin = 8  # جابه‌جایی حداکثر <۴ نمونه؛ margin برای interp امن
+    for s in range(0, n, blk):
+        e = min(s + blk, n)
+        s0 = max(0, s - margin)
+        e0 = min(n, e + margin)
+        base = np.arange(s0, e0, dtype=np.float32)
+        for ch in range(nch):
+            out[s:e, ch] = np.interp(ph[s:e], base, xx[s0:e0, ch]).astype(np.float32)
+    del ph
+    np.multiply(out, g, out=out)
+    return (out[:, 0] if single else out).astype(np.float32, copy=False)
+
+
+def dynamic_stereo_width(x, sr, cfg=None):
+    """پهنای استریو پویا — نوسان خیلی محو (±۷٪) side بر اساس انرژی لحظه‌ای
+    → فضا استاتیک/مکانیکی حس نشه."""
+    cfg = cfg or {}
+    base_w = float(cfg.get("base_width", 1.0))
+    depth = float(cfg.get("modulation_depth", 0.07))
+    smooth_ms = float(cfg.get("smoothing_ms", 150.0))
+    if x.ndim != 2:
+        return x
+    mid = (x[:, 0] + x[:, 1]) * np.float32(0.5)
+    side = (x[:, 0] - x[:, 1]) * np.float32(0.5)
+    env = env_follow(mid, sr, attack_ms=smooth_ms, release_ms=smooth_ms)
+    norm = env / (float(np.percentile(env, 99)) + 1e-9)
+    del env
+    curve = np.float32(base_w) + np.float32(depth) * (norm - float(norm.mean()))
+    del norm
+    side = side * curve
+    return np.stack([mid + side, mid - side], axis=1).astype(np.float32)
 
 
 # ══════════════════ زنجیره وکال ══════════════════
@@ -1037,6 +1239,14 @@ def vocal_chain(x, sr, v):
                                 de["ratio"], makeup_db=de.get("makeup_db", 0.0)),
             y, sr)
         rep.append(f"دی‌اسر (کنترل سوت «س») @ {de['freq']}Hz")
+        # باند دوم ملایم (رزونانس میانی ۴–۵kHz) — ابریشمی‌تر، بدون خفه‌کردن
+        f2 = de.get("freq2")
+        if f2:
+            y = block_apply(
+                lambda blk: deesser(blk, sr, f2, de.get("threshold_db", -24.0),
+                                    de.get("ratio2", 3.0)),
+                y, sr)
+            rep.append(f"دی‌اسر باند دوم @ {int(f2)}Hz (ابریشمی)")
 
     w = v.get("warmth")
     if w:
@@ -1050,6 +1260,13 @@ def vocal_chain(x, sr, v):
             lambda blk: air_exciter(blk, sr, ai["freq"], ai["drive_db"], ai["mix"]),
             y, sr, block_s=15.0)
         rep.append(f"هوا و جزئیات ریز تیس (Air Exciter @ {ai['freq']}Hz)")
+    # هوای فوق‌بالا (>14kHz) — درخشش شیشه‌ای از ناحیه‌های خیلی بالاتر
+    ai2 = v.get("air2")
+    if ai2:
+        y = block_apply(
+            lambda blk: air_exciter(blk, sr, ai2["freq"], ai2["drive_db"], ai2["mix"]),
+            y, sr, block_s=15.0)
+        rep.append(f"هوای فوق‌بالا (Air @ {ai2['freq']}Hz) — شیشه‌ای")
 
     # ابریشمی‌کردن — نرم و براق کردن ناحیهٔ بالا (بدون تیزی)
     sk = v.get("silk")
@@ -1071,6 +1288,17 @@ def vocal_chain(x, sr, v):
                                      hs.get("ratio", 3.5)),
             y, sr, block_s=30.0)
         rep.append("نرم‌کردن سخت‌خوانی (ش/خ/ج) — بدون حالت توییتری")
+
+    # ── ماژول‌های تکمیلی (شیشه‌ای/ابریشمی/مخملی) — همیشه روشن ──
+    # ترتیب: اول تمیزکاری رزونانس → گرما/اکسایتر (رنگ) → ترانزینت (فرم‌دهی)
+    y = dynamic_resonance_eq(y, sr)
+    rep.append("داینامیک EQ رزونانس‌های فردی (۳۰۰/۱۲۰۰/۳۵۰۰Hz)")
+    y = formant_aware_warmth(y, sr)
+    rep.append("گرمای حفظ‌کننده فرمنت (240Hz + ناچ فرمنت‌ها)")
+    y = multiband_harmonic_exciter(y, sr)
+    rep.append("اکسایتر چندباندی (گرما/وضوح/شیشه‌ای)")
+    y = vocal_transient_designer(y, sr)
+    rep.append("نرم‌کردن اتک کانسوننت‌ها (پ/ت/ک/چ) — مخملی")
 
     # ── فضاسازی ──
     # پریست‌های اصلی (معماری سه‌لایه): ریورب بلند به لایهٔ Depth منتقل شد؛
@@ -1118,7 +1346,18 @@ def vocal_chain(x, sr, v):
     tl = v.get("three_layer")
     if tl and tl.get("enabled"):
         y = add_three_layer(y, dry_ref, sr, tl)
-        rep.append("سه‌لایه وکال (Depth + Body + Presence) — عمق و ضخامت")
+        rep.append("سه‌لایه وکال (Depth + Body + Shimmer + Presence) — عمق و ضخامت")
+
+    # ── ویبراتو ریز پیچ (لایه موازی محو) + پهنای استریو پویا ──
+    y = y + micro_pitch_vibrato(y, sr)
+    rep.append("لرزش ریز پیچ (موازی محو) — حس زنده")
+    y = dynamic_stereo_width(y, sr)
+    rep.append("پهنای استریو پویا (نفس‌کشیدن فضا)")
+
+    # گارد پیک نهایی (بعد از جمع ویبراتو و پهنای پویا — بدون دیستورت)
+    pk = float(np.max(np.abs(y)))
+    if pk > 0.985:
+        y = y * np.float32(0.985 / pk)
 
     # خروجی همیشه استریو (اگه زنجیره مونو بود، اینجا پهن می‌شه)
     if y.ndim == 1:
