@@ -235,10 +235,10 @@ presets:
     parallel:
       threshold_db: -36
       ratio: 6
-      mix: 0.35
+      mix: 0.45
     eq_low_shelf:
       freq: 120
-      gain_db: 0.9
+      gain_db: 2.5
     eq_dip:
       freq: 300
       gain_db: -3.2
@@ -261,8 +261,8 @@ presets:
       freq2: 4500
       ratio2: 3.0
     warmth:
-      drive_db: 3.8
-      mix: 0.55
+      drive_db: 5.0
+      mix: 0.65
     air:
       freq: 12000
       drive_db: 2.2
@@ -277,12 +277,12 @@ presets:
       ratio: 3.5
     eq_warm:
       freq: 240
-      gain_db: 2.1
+      gain_db: 3.0
       q: 0.8
-    gain_db: 4.0
+    gain_db: 5.5
     silk:
       freq: 6000
-      drive_db: 1.6
+      drive_db: 1.8
       mix: 0.6
     stereo_repair: true
     eq_high_shelf:
@@ -291,7 +291,7 @@ presets:
     three_layer:
       enabled: true
       depth_level_db: -20.0
-      body_level_db: -10.0
+      body_level_db: -6.0
       depth_pre_delay_ms: 35.0
       body_width: 0.45
       shimmer_level_db: -29.0
@@ -615,10 +615,10 @@ presets:
     parallel:
       threshold_db: -36
       ratio: 6
-      mix: 0.35
+      mix: 0.45
     eq_low_shelf:
       freq: 120
-      gain_db: 0.9
+      gain_db: 2.5
     eq_dip:
       freq: 300
       gain_db: -3.2
@@ -641,8 +641,8 @@ presets:
       freq2: 4500
       ratio2: 3.0
     warmth:
-      drive_db: 3.8
-      mix: 0.55
+      drive_db: 5.0
+      mix: 0.65
     air:
       freq: 12000
       drive_db: 2.2
@@ -657,12 +657,12 @@ presets:
       ratio: 3.5
     eq_warm:
       freq: 240
-      gain_db: 2.1
+      gain_db: 3.0
       q: 0.8
-    gain_db: 4.5
+    gain_db: 5.5
     silk:
       freq: 6000
-      drive_db: 1.6
+      drive_db: 1.8
       mix: 0.6
     stereo_repair: true
     eq_high_shelf:
@@ -671,7 +671,7 @@ presets:
     three_layer:
       enabled: true
       depth_level_db: -20.0
-      body_level_db: -10.0
+      body_level_db: -6.0
       depth_pre_delay_ms: 35.0
       body_width: 0.45
       shimmer_level_db: -29.0
@@ -794,10 +794,10 @@ presets:
     parallel:
       threshold_db: -36
       ratio: 6
-      mix: 0.35
+      mix: 0.45
     eq_low_shelf:
       freq: 120
-      gain_db: 0.9
+      gain_db: 2.5
     eq_dip:
       freq: 300
       gain_db: -3.2
@@ -820,8 +820,8 @@ presets:
       freq2: 4500
       ratio2: 3.0
     warmth:
-      drive_db: 3.8
-      mix: 0.55
+      drive_db: 5.0
+      mix: 0.65
     air:
       freq: 12000
       drive_db: 2.2
@@ -836,12 +836,12 @@ presets:
       ratio: 3.5
     eq_warm:
       freq: 240
-      gain_db: 2.1
+      gain_db: 3.0
       q: 0.8
-    gain_db: 4.5
+    gain_db: 5.5
     silk:
       freq: 6000
-      drive_db: 1.6
+      drive_db: 1.8
       mix: 0.6
     stereo_repair: true
     eq_high_shelf:
@@ -850,7 +850,7 @@ presets:
     three_layer:
       enabled: true
       depth_level_db: -20.0
-      body_level_db: -10.0
+      body_level_db: -6.0
       depth_pre_delay_ms: 35.0
       body_width: 0.45
       shimmer_level_db: -29.0
@@ -973,10 +973,10 @@ presets:
     parallel:
       threshold_db: -36
       ratio: 6
-      mix: 0.35
+      mix: 0.45
     eq_low_shelf:
       freq: 120
-      gain_db: 0.9
+      gain_db: 2.5
     eq_dip:
       freq: 300
       gain_db: -3.2
@@ -999,8 +999,8 @@ presets:
       freq2: 4500
       ratio2: 3.0
     warmth:
-      drive_db: 3.8
-      mix: 0.55
+      drive_db: 5.0
+      mix: 0.65
     air:
       freq: 12000
       drive_db: 2.2
@@ -1015,12 +1015,12 @@ presets:
       ratio: 3.5
     eq_warm:
       freq: 240
-      gain_db: 2.1
+      gain_db: 3.0
       q: 0.8
-    gain_db: 4.0
+    gain_db: 5.5
     silk:
       freq: 6000
-      drive_db: 1.6
+      drive_db: 1.8
       mix: 0.6
     stereo_repair: true
     eq_high_shelf:
@@ -1029,7 +1029,7 @@ presets:
     three_layer:
       enabled: true
       depth_level_db: -20.0
-      body_level_db: -10.0
+      body_level_db: -6.0
       depth_pre_delay_ms: 35.0
       body_width: 0.45
       shimmer_level_db: -29.0

@@ -835,7 +835,7 @@ def _body_layer(dry, sr, body_width=0.45, drive_db=4.5):
     b = PeakFilter(cutoff_frequency_hz=250.0, gain_db=3.0, q=1.2)(b, sr)
     b = HighShelfFilter(cutoff_frequency_hz=5000.0, gain_db=-2.0)(b, sr)
     # اشباع نامتقارن (هارمونیک زوج) به‌جای tanh متقارن → گرم/مخملی نه تیز
-    b = saturation(b, sr, drive_db=drive_db, mix=0.6, asym=0.15)
+    b = saturation(b, sr, drive_db=drive_db, mix=0.6, asym=0.3)
     return _stereo_spread(b, sr, width=float(body_width))
 
 
@@ -1371,99 +1371,69 @@ def vocal_chain(x, sr, v):
 
 # ══════════════════ هارمونی (جابه‌جایی زیروبمی) ══════════════════
 
-def _lpc_coeffs(x, order=20):
-    """ضرایب LPC (مدل all-pole) با روش خودهمبستگی + Levinson-Durbin.
-
-    پوش all-pole حاصل، فرمت‌های وکال رو نرم و بدون نال‌های طیفی مدل می‌کنه
-    (برخلاف پوش کپسترال که توی نال‌ها بینهایت می‌شد)."""
-    m = to_mono(x).astype(np.float64)
-    m = m - m.mean()
-    n = len(m)
-    if n < order + 1:
-        return None
-    r = np.zeros(order + 1, dtype=np.float64)
-    for k in range(order + 1):
-        r[k] = m[k:].dot(m[:n - k])
-    a = np.zeros(order + 1, dtype=np.float64)
-    a[0] = 1.0
-    e = r[0]
-    if e < 1e-12:
-        return a
-    for i in range(1, order + 1):
-        acc = r[i] + a[1:i].dot(r[i - 1:0:-1])
-        k = -acc / e
-        a_new = a.copy()
-        for j in range(1, i):
-            a_new[j] = a[j] + k * a[i - j]
-        a_new[i] = k
-        a = a_new
-        e *= (1.0 - k * k)
-        if e < 1e-14:
-            break
-    return a
-
-
-def _lpc_response(a, f, sr):
-    """|A(f)| = |Σ a[k]·e^{-j2πfk/sr}| — پاسخ فرکانسی چندجمله‌ای LPC."""
-    z = np.exp(-1j * 2.0 * np.pi * np.asarray(f, dtype=np.float64) / sr)
-    return np.abs(np.polyval(a, z))
-
-
-def _formant_correction_fir(a, semitones, sr,
-                            f_lo=80.0, f_hi=5200.0, ntaps=1025, max_db=12.0):
-    """فیلتر تصحیح فرمت از مدل LPC: corr(f) = |A(f/r)| / |A(f)|.
-
-    پیت‌شیفت فرمت‌ها رو ×r جابه‌جا می‌کنه (پوش shifted = V(f/r)). برای
-    برگردوندن فرمت‌ها به جای اصلی، گین تصحیح = V(f)/V(f/r) = |A(f/r)|/|A(f)|.
-    این نسبت از مدل all-pole نرم و محدوده (بدون نال) → FIR خوش‌رفتار."""
-    r = 2.0 ** (float(semitones) / 12.0)
-    f = np.linspace(0.0, sr / 2.0, ntaps // 2 + 1)  # 0..fs/2 یکنواخت (Type I)
-    A_f = _lpc_response(a, f, sr)
-    A_fr = _lpc_response(a, np.clip(f / r, 0.0, sr / 2.0), sr)
-    corr = A_fr / np.maximum(A_f, 1e-6)             # V(f)/V(f/r)
-    corr_db = np.clip(20.0 * np.log10(corr + 1e-9), -max_db, max_db)
-    # تِیپر نرم (کوسینوسی) در لبه‌های باند — بدون پرش تیز/زنگ Gibbs
-    taper_w = 300.0
-    band = np.ones_like(f)
-    band[f < f_lo] = 0.0
-    band[f > f_hi] = 0.0
-    lo_edge = (f >= f_lo) & (f < f_lo + taper_w)
-    hi_edge = (f <= f_hi) & (f > f_hi - taper_w)
-    band[lo_edge] = 0.5 * (1.0 - np.cos(np.pi * (f[lo_edge] - f_lo) / taper_w))
-    band[hi_edge] = 0.5 * (1.0 + np.cos(np.pi * (f[hi_edge] - (f_hi - taper_w)) / taper_w))
-    corr_db = corr_db * band
-    gain = 10.0 ** (corr_db / 20.0)
-    return spsig.firwin2(ntaps, f, gain, fs=sr).astype(np.float32)
-
-
-def formant_preserving_harmonize(x, sr, semitones):
-    """پیت‌شیفت حافظِ فرمت — هارمونی/فاصلهٔ طبیعی بدون صدای کارتونی.
-
-    PitchShift زیروبمی رو جابه‌جا می‌کنه (طول ثابت) ولی فرمت‌ها هم باهاش
-    جابه‌جا می‌شن (اثر میکی‌موس). اینجا بعد از شیفت، یک فیلتر تصحیح فرمت
-    (بر اساس مدل LPC فرمت‌های اصلی) اعمال می‌شه تا فرمت‌ها سر جاشون بمونن
-    → فاصلهٔ واقعی، همون خواننده."""
-    from pedalboard import PitchShift
-    y = to_stereo(x).astype(np.float32)
-    shifted = np.asarray(PitchShift(semitones=float(semitones))(y, sr),
-                         dtype=np.float32)
-    if abs(float(semitones)) < 0.5:
-        return shifted
-    a = _lpc_coeffs(y, order=20)
-    if a is None:
-        return shifted
-    fir = _formant_correction_fir(a, float(semitones), sr)
-    L = spsig.oaconvolve(shifted[:, 0], fir, mode="same").astype(np.float32)
-    R = spsig.oaconvolve(shifted[:, 1], fir, mode="same").astype(np.float32)
-    return np.stack([L, R], axis=1).astype(np.float32)
-
-
 def harmonize(x, sr, semitones):
-    """جابه‌جایی زیروبمی (هارمونی) بدون تغییر طول — با موتور Rubber Band
-    + تصحیح فرمت (فرمت‌ها ثابت → بدون اثر میکی‌موس/چیپمونک).
+    """جابه‌جایی زیروبمی (هارمونی) حافظِ فرمت — با واکودر WORLD (pyworld).
 
-    semitones مثبت = زیرتر (بالا). خروجی: استریو float32 هم‌طول ورودی."""
-    return formant_preserving_harmonize(x, sr, semitones)
+    WORLD پیت (F0) و پوش طیفی (فرمت‌ها) رو جدا تحلیل می‌کنه؛ اینجا فقط F0
+    جابه‌جا می‌شه و پوش طیفی ثابت می‌مونه → همون خواننده، فقط نت عوض شده
+    (بدون اثر میکی‌موس/سنجاب). برخلاف PitchShift ساده که فرمت‌ها رو هم
+    همراه پیت جابه‌جا می‌کنه.
+
+    semitones مثبت = زیرتر (بالا). خروجی: استریو float32 هم‌طول ورودی.
+    پردازش بلوکی (۶۰s + هم‌پوشانی نرم) برای مصرف رم کم روی سرویس ۱ گیگی."""
+    try:
+        import pyworld as pw
+    except Exception as e:
+        log.warning("pyworld در دسترس نیست — fallback به PitchShift ساده: %s", e)
+        from pedalboard import PitchShift
+        y = to_stereo(x).astype(np.float32)
+        return np.asarray(PitchShift(semitones=float(semitones))(y, sr),
+                          dtype=np.float32)
+
+    semis = float(semitones)
+    if abs(semis) < 0.05:
+        return to_stereo(x).astype(np.float32)
+
+    single = x.ndim == 1
+    mono = to_mono(x).astype(np.float64)
+    n = len(mono)
+
+    def _shift_block(blk, s_ratio):
+        # WORLD: تحلیل F0 + پوش طیفی + ناپریودیک → فقط F0 جابه‌جا → سنتز
+        _f0, t_est = pw.dio(blk, sr)
+        f0 = pw.stonemask(blk, _f0, t_est, sr)
+        sp = pw.cheaptrick(blk, f0, t_est, sr)
+        ap = pw.d4c(blk, f0, t_est, sr)
+        f0_s = f0 * s_ratio
+        out = pw.synthesize(f0_s, sp, ap, sr)
+        if len(out) < len(blk):
+            out = np.pad(out, (0, len(blk) - len(out)))
+        return out[: len(blk)]
+
+    # بلوک‌بندی با هم‌پوشانی نرم (بدون کلیک در مرزها)
+    blk_s = 60.0
+    ov_s = 2.0
+    blen = int(blk_s * sr)
+    ov = int(ov_s * sr)
+    r = 2.0 ** (semis / 12.0)
+    if n <= blen:
+        out = _shift_block(mono, r).astype(np.float32)
+    else:
+        out = np.zeros(n, dtype=np.float64)
+        w = np.zeros(n, dtype=np.float64)
+        pos = 0
+        while pos < n:
+            end = min(pos + blen, n)
+            seg = _shift_block(mono[pos:end], r)
+            fade = np.hanning(end - pos)
+            out[pos:end] += seg * fade
+            w[pos:end] += fade
+            if end >= n:
+                break
+            pos += blen - ov
+        out = (out / np.maximum(w, 1e-8)).astype(np.float32)
+
+    return to_stereo(out).astype(np.float32)
 
 
 # ══════════════════ داینامیک EQ (تفکیک سازها) ══════════════════
