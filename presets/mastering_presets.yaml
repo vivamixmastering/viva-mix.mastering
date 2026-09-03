@@ -245,15 +245,15 @@ presets:
       q: 1.4
     eq_presence:
       freq: 2500
-      gain_db: 2.2
+      gain_db: 1.6
       q: 1.0
     eq_gloss:
       freq: 9500
-      gain_db: 1.0
+      gain_db: 1.8
       q: 0.9
     eq_air_shelf:
       freq: 13500
-      gain_db: 1.2
+      gain_db: 1.8
     deess:
       threshold_db: -24.0
       ratio: 6.0
@@ -272,9 +272,9 @@ presets:
       threshold_db: -12.0
       ratio: 4.0
     harshness:
-      freq: 3500.0
-      threshold_db: -20.0
-      ratio: 3.5
+      freq: 3500
+      threshold_db: -22.0
+      ratio: 4.0
     eq_warm:
       freq: 240
       gain_db: 3.0
@@ -282,7 +282,7 @@ presets:
     gain_db: 5.5
     silk:
       freq: 6000
-      drive_db: 1.8
+      drive_db: 2.0
       mix: 0.6
     stereo_repair: true
     eq_high_shelf:
@@ -290,11 +290,11 @@ presets:
       gain_db: 1.0
     three_layer:
       enabled: true
-      depth_level_db: -20.0
+      depth_level_db: -15.0
       body_level_db: -6.0
       depth_pre_delay_ms: 35.0
       body_width: 0.45
-      shimmer_level_db: -29.0
+      shimmer_level_db: -30.0
     slap_delay:
       enabled: true
       time_s: 0.035
@@ -625,15 +625,15 @@ presets:
       q: 1.4
     eq_presence:
       freq: 2500
-      gain_db: 2.2
+      gain_db: 1.6
       q: 1.0
     eq_gloss:
       freq: 9500
-      gain_db: 1.0
+      gain_db: 1.8
       q: 0.9
     eq_air_shelf:
       freq: 13500
-      gain_db: 1.2
+      gain_db: 1.8
     deess:
       threshold_db: -24.0
       ratio: 6.0
@@ -652,9 +652,9 @@ presets:
       threshold_db: -12.0
       ratio: 4.0
     harshness:
-      freq: 3500.0
-      threshold_db: -20.0
-      ratio: 3.5
+      freq: 3500
+      threshold_db: -22.0
+      ratio: 4.0
     eq_warm:
       freq: 240
       gain_db: 3.0
@@ -662,7 +662,7 @@ presets:
     gain_db: 5.5
     silk:
       freq: 6000
-      drive_db: 1.8
+      drive_db: 2.0
       mix: 0.6
     stereo_repair: true
     eq_high_shelf:
@@ -670,11 +670,11 @@ presets:
       gain_db: 1.0
     three_layer:
       enabled: true
-      depth_level_db: -20.0
+      depth_level_db: -15.0
       body_level_db: -6.0
       depth_pre_delay_ms: 35.0
       body_width: 0.45
-      shimmer_level_db: -29.0
+      shimmer_level_db: -30.0
     slap_delay:
       enabled: true
       time_s: 0.035
@@ -804,15 +804,15 @@ presets:
       q: 1.4
     eq_presence:
       freq: 2500
-      gain_db: 2.2
+      gain_db: 1.6
       q: 1.0
     eq_gloss:
       freq: 9500
-      gain_db: 1.0
+      gain_db: 1.8
       q: 0.9
     eq_air_shelf:
       freq: 13500
-      gain_db: 1.2
+      gain_db: 1.8
     deess:
       threshold_db: -24.0
       ratio: 6.0
@@ -831,9 +831,9 @@ presets:
       threshold_db: -12.0
       ratio: 4.0
     harshness:
-      freq: 3500.0
-      threshold_db: -20.0
-      ratio: 3.5
+      freq: 3500
+      threshold_db: -22.0
+      ratio: 4.0
     eq_warm:
       freq: 240
       gain_db: 3.0
@@ -841,7 +841,7 @@ presets:
     gain_db: 5.5
     silk:
       freq: 6000
-      drive_db: 1.8
+      drive_db: 2.0
       mix: 0.6
     stereo_repair: true
     eq_high_shelf:
@@ -849,11 +849,11 @@ presets:
       gain_db: 1.0
     three_layer:
       enabled: true
-      depth_level_db: -20.0
+      depth_level_db: -15.0
       body_level_db: -6.0
       depth_pre_delay_ms: 35.0
       body_width: 0.45
-      shimmer_level_db: -29.0
+      shimmer_level_db: -30.0
     slap_delay:
       enabled: true
       time_s: 0.035
@@ -983,15 +983,15 @@ presets:
       q: 1.4
     eq_presence:
       freq: 2500
-      gain_db: 2.2
+      gain_db: 1.6
       q: 1.0
     eq_gloss:
       freq: 9500
-      gain_db: 1.0
+      gain_db: 1.8
       q: 0.9
     eq_air_shelf:
       freq: 13500
-      gain_db: 1.2
+      gain_db: 1.8
     deess:
       threshold_db: -24.0
       ratio: 6.0
@@ -1010,9 +1010,9 @@ presets:
       threshold_db: -12.0
       ratio: 4.0
     harshness:
-      freq: 3500.0
-      threshold_db: -20.0
-      ratio: 3.5
+      freq: 3500
+      threshold_db: -22.0
+      ratio: 4.0
     eq_warm:
       freq: 240
       gain_db: 3.0
@@ -1020,7 +1020,7 @@ presets:
     gain_db: 5.5
     silk:
       freq: 6000
-      drive_db: 1.8
+      drive_db: 2.0
       mix: 0.6
     stereo_repair: true
     eq_high_shelf:
@@ -1028,11 +1028,11 @@ presets:
       gain_db: 1.0
     three_layer:
       enabled: true
-      depth_level_db: -20.0
+      depth_level_db: -15.0
       body_level_db: -6.0
       depth_pre_delay_ms: 35.0
       body_width: 0.45
-      shimmer_level_db: -29.0
+      shimmer_level_db: -30.0
     slap_delay:
       enabled: true
       time_s: 0.035

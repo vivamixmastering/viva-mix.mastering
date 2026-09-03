@@ -834,21 +834,31 @@ def _body_layer(dry, sr, body_width=0.45, drive_db=4.5):
                    attack_ms=22.0, release_ms=120.0)(b, sr), dtype=np.float32)
     b = PeakFilter(cutoff_frequency_hz=250.0, gain_db=3.0, q=1.2)(b, sr)
     b = HighShelfFilter(cutoff_frequency_hz=5000.0, gain_db=-2.0)(b, sr)
-    # اشباع نامتقارن (هارمونیک زوج) به‌جای tanh متقارن → گرم/مخملی نه تیز
-    b = saturation(b, sr, drive_db=drive_db, mix=0.6, asym=0.3)
+    # اشباع نامتقارنِ ملایم (هارمونیک زوج ظریف) → مخملی بدون اکتاو/سنجابی.
+    # asym زیاد (0.3) هارمونیک 2f رو غالب می‌کرد → صدای نازال/اکتاو بالا.
+    b = saturation(b, sr, drive_db=drive_db, mix=0.6, asym=0.12)
+    # دیلی کوتاه + ریورب سبک — لایهٔ میانی دیگه خشک نباشه (حس فضا/عمق)
+    from pedalboard import Delay, Reverb
+    b = np.asarray(Delay(delay_seconds=0.13, feedback=0.25, mix=0.18)(b, sr),
+                   dtype=np.float32)
+    b = np.asarray(Reverb(room_size=0.35, damping=0.5,
+                          wet_level=0.2, dry_level=1.0, width=1.0)(b, sr),
+                   dtype=np.float32)
     return _stereo_spread(b, sr, width=float(body_width))
 
 
 def shimmer_layer(dry, sr):
-    """لایهٔ Shimmer — یک اکتاو پیچ‌شیفت بالا + ریورب کوتاه، خیلی محو.
+    """لایهٔ Shimmer — «هوای مرتفع» + ریورب، خیلی محو (بدون پیچ‌شیفت).
 
-    حس «درخشش شیشه‌ای» بدون دستکاری EQ مستقیم: یه هارمونیک اکتاو-بالا
-    خیلی محو که زیر لایهٔ Depth می‌نشینه. مونو پردازش و در پایان با
-    آل‌پس پهن می‌شه (کم‌مصرف)."""
-    from pedalboard import PitchShift, Reverb
+    ⚠️ قبلاً یک اکتاو پیچ‌شیفت (PitchShift +12) داشت که فرمت‌های وکال رو
+    هم اکتاو-بالا می‌کرد → صدای «آلوین/سنجابی». حالا بدون پیچ‌شیفت: فقط
+    باند بالای ۴kHz (هوا) از سیگنال خشک → ریورب → استریو. درخشش شیشه‌ای
+    رو از EQ لایهٔ رویی می‌گیریم، نه از اکتاو اینجا."""
+    from pedalboard import Reverb
     m = to_mono(dry).astype(np.float32, copy=False)
-    m = np.asarray(PitchShift(semitones=12.0)(m, sr), dtype=np.float32)
-    m = HighpassFilter(cutoff_frequency_hz=2000.0)(m, sr)
+    # فقط باند هوا (بالای ۴kHz) — بدون تغییر زیروبمی، بدون فرمت جابه‌جا
+    sos = spsig.butter(4, 4000.0, btype="high", fs=sr, output="sos")
+    m = spsig.sosfilt(sos, m, axis=0).astype(np.float32)
     m = Reverb(room_size=0.6, damping=0.5,
                wet_level=1.0, dry_level=0.0, width=1.0)(m, sr)
     return _stereo_spread(np.asarray(m, dtype=np.float32), sr, width=1.0)
