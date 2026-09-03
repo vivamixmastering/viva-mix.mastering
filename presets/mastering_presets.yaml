@@ -292,7 +292,7 @@ presets:
       enabled: true
       depth_level_db: -15.0
       body_level_db: -6.0
-      depth_pre_delay_ms: 8.0
+      depth_pre_delay_ms: 0.0
       body_width: 0.45
       shimmer_level_db: -16.0
     slap_delay:
@@ -300,7 +300,7 @@ presets:
       time_s: 0.035
       mix: 0.06
     air2:
-      freq: 16000
+      freq: 18000
       drive_db: 1.2
       mix: 0.4
     microshift:
@@ -676,7 +676,7 @@ presets:
       enabled: true
       depth_level_db: -15.0
       body_level_db: -6.0
-      depth_pre_delay_ms: 8.0
+      depth_pre_delay_ms: 0.0
       body_width: 0.45
       shimmer_level_db: -16.0
     slap_delay:
@@ -684,7 +684,7 @@ presets:
       time_s: 0.035
       mix: 0.06
     air2:
-      freq: 16000
+      freq: 18000
       drive_db: 1.2
       mix: 0.4
     microshift:
@@ -859,7 +859,7 @@ presets:
       enabled: true
       depth_level_db: -15.0
       body_level_db: -6.0
-      depth_pre_delay_ms: 8.0
+      depth_pre_delay_ms: 0.0
       body_width: 0.45
       shimmer_level_db: -16.0
     slap_delay:
@@ -867,7 +867,7 @@ presets:
       time_s: 0.035
       mix: 0.06
     air2:
-      freq: 16000
+      freq: 18000
       drive_db: 1.2
       mix: 0.4
     microshift:
@@ -1042,7 +1042,7 @@ presets:
       enabled: true
       depth_level_db: -15.0
       body_level_db: -6.0
-      depth_pre_delay_ms: 8.0
+      depth_pre_delay_ms: 0.0
       body_width: 0.45
       shimmer_level_db: -16.0
     slap_delay:
@@ -1050,7 +1050,7 @@ presets:
       time_s: 0.035
       mix: 0.06
     air2:
-      freq: 16000
+      freq: 18000
       drive_db: 1.2
       mix: 0.4
     microshift:
