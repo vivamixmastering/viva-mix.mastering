@@ -128,12 +128,15 @@ def lowpass(x, sr, freq, order=2):
 # ══════════════════ دنبال‌کننده دامنه ══════════════════
 
 def env_follow(x, sr, attack_ms=10.0, release_ms=120.0):
-    """پوش دامنه با max-pool سبک (نرخ ~۳۴۴Hz) — مصرف رم ناچیز و مستقل از طول"""
+    """پوش دامنه با max-pool سبک (نرخ ~۳۴۴Hz) — مصرف رم ناچیز و مستقل از طول.
+
+    ⚠️ مهم: همیشه کپی می‌گیره (np.abs) و هرگز ورودی رو درجا دست نمی‌زنه —
+    چون وقتی x مونو (۱بعدی) باشه، a همون x هست و np.abs(a, out=a) سیگنال
+    رو فول‌ویو رکتیفای می‌کرد → فرکانس دو برابر (چیپمونک/سنجاب)."""
     a = x.mean(axis=1) if x.ndim == 2 else x
-    if a.dtype == np.float32:
-        np.abs(a, out=a)          # درجا
-    else:
-        a = np.abs(a)
+    a = np.abs(a)                    # کپی — ورودی دست‌نخورده می‌مونه
+    if a.dtype != np.float32:
+        a = a.astype(np.float32)
     ds = 128
     n = len(a)
     pad = (-n) % ds
