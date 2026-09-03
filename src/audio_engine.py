@@ -862,11 +862,13 @@ def _body_layer(dry, sr, body_width=0.45, drive_db=4.5):
     b = HighShelfFilter(cutoff_frequency_hz=5000.0, gain_db=-2.0)(b, sr)
     # اشباع نامتقارنِ ملایم (هارمونیک زوج ظریف) → مخملی بدون اکتاو/سنجابی.
     # asym زیاد (0.3) هارمونیک 2f رو غالب می‌کرد → صدای نازال/اکتاو بالا.
-    b = saturation(b, sr, drive_db=drive_db, mix=0.6, asym=0.12)
-    # دیلی کوتاه + ریورب سبک — لایهٔ میانی دیگه خشک نباشه (حس فضا/عمق)
-    from pedalboard import Delay, Reverb
-    b = np.asarray(Delay(delay_seconds=0.13, feedback=0.25, mix=0.18)(b, sr),
-                   dtype=np.float32)
+    # drive کمتر → هارمونیک‌های پایین (500/750Hz) که گل 300-1000 رو زیاد
+    # می‌کردن کمتر تولید بشن.
+    b = saturation(b, sr, drive_db=drive_db, mix=0.45, asym=0.12)
+    # ریورب سبک — لایهٔ میانی دیگه خشک نباشه (حس فضا/عمق).
+    # ⚠️ دیلی قبلاً ۱۳۰ms بود و حس «اکو/لگ» نسبت به لایهٔ رویی می‌داد
+    # → حذف شد؛ فقط ریورب سبک مونده (بدون تکرارِ قابل‌شنیدن).
+    from pedalboard import Reverb
     b = np.asarray(Reverb(room_size=0.35, damping=0.5,
                           wet_level=0.2, dry_level=1.0, width=1.0)(b, sr),
                    dtype=np.float32)
