@@ -1371,7 +1371,7 @@ def vocal_chain(x, sr, v):
         rep.append("فضاسازی حرفه‌ای (پره‌دلی + دیلی + ریورب + هوای دم)")
 
     target = v.get("out_lufs", -18.0)
-    y = normalize_lufs(y, sr, target=target, ceiling_db=-3.0)
+    y = normalize_lufs(y, sr, target=target, ceiling_db=-1.0)
     rep.append(f"نرمال‌سازی وکال → {target} LUFS")
     # گین صریح خروجی (کنترل قدرت/بلندی مستقیم، جدا از نرمال‌سازی LUFS)
     g = v.get("gain_db")
@@ -1396,10 +1396,9 @@ def vocal_chain(x, sr, v):
     y = dynamic_stereo_width(y, sr)
     rep.append("پهنای استریو پویا (نفس‌کشیدن فضا)")
 
-    # گارد پیک نهایی (بعد از جمع ویبراتو و پهنای پویا — بدون دیستورت)
-    pk = float(np.max(np.abs(y)))
-    if pk > 0.985:
-        y = y * np.float32(0.985 / pk)
+    # کلیپ نرم نهایی (به‌جای گارد پیکِ سخت که کل صدا رو کم می‌کرد و LUFS رو
+    # می‌کشید پایین) — فقط پیک‌ها رو گرد می‌کنه، بدنهٔ صدا دست‌نخورده می‌مونه.
+    y = soft_clip(y, ceiling_db=-0.5)
 
     # خروجی همیشه استریو (اگه زنجیره مونو بود، اینجا پهن می‌شه)
     if y.ndim == 1:

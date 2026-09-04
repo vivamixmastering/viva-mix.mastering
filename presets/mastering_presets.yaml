@@ -252,8 +252,8 @@ presets:
       gain_db: 3.0
       q: 0.9
     eq_air_shelf:
-      freq: 13500
-      gain_db: 3.5
+      freq: 11000
+      gain_db: 4.0
     deess:
       threshold_db: -24.0
       ratio: 6.0
@@ -264,8 +264,8 @@ presets:
       drive_db: 2.0
       mix: 0.5
     air:
-      freq: 12000
-      drive_db: 2.8
+      freq: 10000
+      drive_db: 3.2
       mix: 0.5
     out_lufs: -9.0
     deplosive:
@@ -278,7 +278,7 @@ presets:
     eq_warm:
       freq: 250
       gain_db: -8.0
-      q: 1.0
+      q: 0.8
     gain_db: 5.5
     silk:
       freq: 6000
@@ -301,7 +301,7 @@ presets:
       mix: 0.06
     air2:
       freq: 16000
-      drive_db: 1.2
+      drive_db: 2.0
       mix: 0.4
   mix:
     vocal_gain_db: 0.9
@@ -632,8 +632,8 @@ presets:
       gain_db: 3.0
       q: 0.9
     eq_air_shelf:
-      freq: 13500
-      gain_db: 3.5
+      freq: 11000
+      gain_db: 4.0
     deess:
       threshold_db: -24.0
       ratio: 6.0
@@ -644,8 +644,8 @@ presets:
       drive_db: 2.0
       mix: 0.5
     air:
-      freq: 12000
-      drive_db: 2.8
+      freq: 10000
+      drive_db: 3.2
       mix: 0.5
     out_lufs: -9.0
     deplosive:
@@ -658,7 +658,7 @@ presets:
     eq_warm:
       freq: 250
       gain_db: -8.0
-      q: 1.0
+      q: 0.8
     gain_db: 5.5
     silk:
       freq: 6000
@@ -681,7 +681,7 @@ presets:
       mix: 0.06
     air2:
       freq: 16000
-      drive_db: 1.2
+      drive_db: 2.0
       mix: 0.4
   mix:
     vocal_gain_db: 1.0
@@ -811,8 +811,8 @@ presets:
       gain_db: 3.0
       q: 0.9
     eq_air_shelf:
-      freq: 13500
-      gain_db: 3.5
+      freq: 11000
+      gain_db: 4.0
     deess:
       threshold_db: -24.0
       ratio: 6.0
@@ -823,8 +823,8 @@ presets:
       drive_db: 2.0
       mix: 0.5
     air:
-      freq: 12000
-      drive_db: 2.8
+      freq: 10000
+      drive_db: 3.2
       mix: 0.5
     out_lufs: -9.0
     deplosive:
@@ -837,7 +837,7 @@ presets:
     eq_warm:
       freq: 250
       gain_db: -8.0
-      q: 1.0
+      q: 0.8
     gain_db: 5.5
     silk:
       freq: 6000
@@ -860,7 +860,7 @@ presets:
       mix: 0.06
     air2:
       freq: 16000
-      drive_db: 1.2
+      drive_db: 2.0
       mix: 0.4
   mix:
     vocal_gain_db: 1.0
@@ -875,8 +875,8 @@ presets:
       gain_db: -2.5
       q: 0.8
     eq_low_shelf:
-      freq: 85
-      gain_db: 0.6
+      freq: 45
+      gain_db: 3.5
     eq_high_shelf:
       freq: 10000
       gain_db: 0.5
@@ -990,8 +990,8 @@ presets:
       gain_db: 3.0
       q: 0.9
     eq_air_shelf:
-      freq: 13500
-      gain_db: 3.5
+      freq: 11000
+      gain_db: 4.0
     deess:
       threshold_db: -24.0
       ratio: 6.0
@@ -1002,8 +1002,8 @@ presets:
       drive_db: 2.0
       mix: 0.5
     air:
-      freq: 12000
-      drive_db: 2.8
+      freq: 10000
+      drive_db: 3.2
       mix: 0.5
     out_lufs: -9.0
     deplosive:
@@ -1016,7 +1016,7 @@ presets:
     eq_warm:
       freq: 250
       gain_db: -8.0
-      q: 1.0
+      q: 0.8
     gain_db: 5.5
     silk:
       freq: 6000
@@ -1039,7 +1039,7 @@ presets:
       mix: 0.06
     air2:
       freq: 16000
-      drive_db: 1.2
+      drive_db: 2.0
       mix: 0.4
   mix:
     vocal_gain_db: 0.8
