@@ -825,15 +825,16 @@ def _stereo_spread(mono, sr, width=1.0):
     return np.stack([mid + side, mid - side], axis=1).astype(np.float32)
 
 
-def _depth_layer(dry, sr, pre_delay_ms=35.0):
-    """لایهٔ Depth (عمق) — ریوربِ پلیت بلند + فیلترها برای حس فاصله.
+def _depth_layer(dry, sr, pre_delay_ms=35.0, echo_ms=40.0, echo_fb=0.3, echo_mix=0.35):
+    """لایهٔ Depth (عمق) — ریوربِ پلیت بلند + دیلی کوتاه + فیلترها.
 
     HPF 250Hz (حذف باس → کدر نشه) → پره‌دلی → ریورب پلیت (فقط خیس، عریض)
-    → LPF 7500Hz (حذف تیزی، فقط حس فاصله) → پهن‌کردن استریو.
+    → دیلی کوتاه (echo، حس اکو/عمق بدون جداشدن از لید) → LPF 7500Hz
+    (حذف تیزی، فقط حس فاصله) → پهن‌کردن استریو.
     پره‌دلی با np.roll (ریوربِ pedalboard پارامتر پره‌دلی نداره).
     مونو پردازش می‌شه تا مصرف رم نصف بشه؛ عرض در پایان با آل‌پس ساخته می‌شه.
     """
-    from pedalboard import Reverb
+    from pedalboard import Reverb, Delay
     d = to_mono(dry).astype(np.float32, copy=False)
     if pre_delay_ms > 0:
         pd = int(pre_delay_ms / 1000.0 * sr)
@@ -842,6 +843,10 @@ def _depth_layer(dry, sr, pre_delay_ms=35.0):
     d = HighpassFilter(cutoff_frequency_hz=250.0)(d, sr)
     d = Reverb(room_size=0.85, damping=0.35,
                wet_level=1.0, dry_level=0.0, width=1.0)(d, sr)
+    if echo_ms > 0 and echo_mix > 0:
+        dl = Delay(delay_seconds=echo_ms / 1000.0, feedback=echo_fb, mix=1.0)(d, sr)
+        d = d * np.float32(1.0 - echo_mix) + dl * np.float32(echo_mix)
+        del dl
     d = LowpassFilter(cutoff_frequency_hz=7500.0)(d, sr)
     return _stereo_spread(np.asarray(d, dtype=np.float32), sr, width=1.0)
 
@@ -902,19 +907,108 @@ def slap_delay(y, sr, time_s=0.035, mix=0.06):
     return (out[:, 0] if single else out).astype(np.float32)
 
 
+def _chorus_envelope(mono, sr, reg_thresh=1.35, ranges=None):
+    """پوش نرم 0..1 که بخش‌های کورس رو نشون می‌ده.
+
+    اگه `ranges` (لیست [شروع, پایان] بر حسب ثانیه) داده بشه، همون بازه‌ها
+    فعال‌اند؛ وگرنه خودکار: پیتِ هر نیم‌ثانیه با اتوکورولیشن تخمین زده
+    می‌شه و فریم‌هایی که F0 شون از `reg_thresh`× میانهٔ F0 بالاتر باشن
+    (پرش رجیستر به فالستو) = کورس. خروجی پوشی صاف (فید ~1s) است تا
+    هارمونی بدون کلیک وارد/خارج بشه.
+    """
+    n = len(mono)
+    if ranges:
+        env = np.zeros(n, dtype=np.float32)
+        for a, b in ranges:
+            s = int(float(a) * sr)
+            e = int(float(b) * sr)
+            if e > s and s < n:
+                env[s:min(e, n)] = 1.0
+        k = int(0.5 * sr)
+        kern = np.hanning(k).astype(np.float32)
+        kern /= kern.sum()
+        env = np.convolve(env, kern, mode="same").astype(np.float32)
+        return np.clip(env, 0.0, 1.0)
+    win = int(0.5 * sr)
+    hop = int(0.25 * sr)
+    if n < win:
+        return np.zeros(n, dtype=np.float32)
+    f0s = []
+    for s in range(0, n - win + 1, hop):
+        blk = mono[s:s + win]
+        blk = blk - blk.mean()
+        ac = np.correlate(blk, blk, "full")[win - 1:]
+        ac = ac / (ac[0] + 1e-9)
+        lo = int(sr / 500.0)
+        hi = int(sr / 80.0)
+        if hi > len(ac):
+            hi = len(ac) - 1
+        if lo >= hi:
+            f0s.append(0.0)
+            continue
+        r = ac[lo:hi]
+        pk = r.max()
+        f0s.append(sr / (lo + r.argmax()) if pk > 0.3 else 0.0)
+    f0s = np.array(f0s, dtype=np.float32)
+    voiced = f0s[f0s > 60.0]
+    if len(voiced) < 5:
+        return np.zeros(n, dtype=np.float32)
+    med = float(np.median(voiced))
+    if med < 60.0:
+        return np.zeros(n, dtype=np.float32)
+    mask = (f0s > med * reg_thresh).astype(np.float32)
+    env = np.repeat(mask, hop)
+    if len(env) < n:
+        env = np.pad(env, (0, n - len(env)))
+    env = env[:n]
+    k = int(1.0 * sr)
+    kern = np.hanning(k).astype(np.float32)
+    kern /= kern.sum()
+    env = np.convolve(env, kern, mode="same").astype(np.float32)
+    return np.clip(env, 0.0, 1.0)
+
+
+def _chorus_harmony_layer(dry, sr, semitones=12.0, reg_thresh=1.2, ranges=None):
+    """هارمونی اکتاو (WORLD، حافظ فرمت) که فقط در کورس فعاله.
+
+    کل سیگنال با `harmonize` یک اکتاو بالا می‌ره (همون خواننده، همون تیمبر)،
+    بعد با پوشِ کورس ضرب می‌شه تا فقط بخش‌های کورس بمونن (بازه‌های دستی
+    `ranges` یا تشخیص خودکار رجیستر بالا).
+    برمی‌گردونه استریوی float32 هم‌طول ورودی، یا None اگه کورسی نباشه.
+    """
+    mono = to_mono(dry).astype(np.float32, copy=False)
+    env = _chorus_envelope(mono, sr, reg_thresh, ranges)
+    if env.max() < 0.05:
+        return None
+    harm = harmonize(mono, sr, semitones)
+    harm = harm * env[:, None].astype(np.float32)
+    del env
+    return harm
+
+
 def add_three_layer(presence, dry, sr, cfg):
     """معماری سه‌لایه: Depth (عمق) + Body (ضخامت) + Presence (شفاف).
 
     depth و body از dry (وکال خام) ساخته می‌شن و نسبت به سطحِ presence
     (مرجع 0dB) با -20dB و -10dB جمع می‌شن → عمق و چندبعدی بودن.
     ساخت پشت‌سرهم + جمع درجا برای مصرف رم کم (سرویس ۱ گیگ).
+
+    لایهٔ Depth شامل ریوربِ پلیت + دیلی کوتاه (echo) است؛ و اگه
+    `chorus_harmony` روشن باشه، یک هارمونی اکتاوِ حافظِ فرمت هم فقط در
+    بخش‌های کورس (رجیستر بالا) بهش اضافه می‌شه — همه پشتِ لایهٔ رویی.
     """
+    from pedalboard import Delay, Reverb
     presence = to_stereo(presence).astype(np.float32)
     p_rms = float(np.sqrt(np.mean(np.square(presence)) + 1e-12))
     n = len(presence)
 
-    # ── لایهٔ Depth ──
-    depth = _depth_layer(dry, sr, float(cfg.get("depth_pre_delay_ms", 35.0)))
+    echo_ms = float(cfg.get("depth_echo_ms", 40.0))
+    echo_fb = float(cfg.get("depth_echo_fb", 0.3))
+    echo_mix = float(cfg.get("depth_echo_mix", 0.35))
+
+    # ── لایهٔ Depth (ریورب + دیلی) ──
+    depth = _depth_layer(dry, sr, float(cfg.get("depth_pre_delay_ms", 35.0)),
+                         echo_ms=echo_ms, echo_fb=echo_fb, echo_mix=echo_mix)
     if len(depth) > n:
         depth = depth[:n]
     elif len(depth) < n:
@@ -922,6 +1016,35 @@ def add_three_layer(presence, dry, sr, cfg):
     d_rms = float(np.sqrt(np.mean(np.square(depth)) + 1e-12))
     if d_rms > 1e-9:
         depth = depth * np.float32(db2lin(cfg.get("depth_level_db", -20.0)) * p_rms / d_rms)
+
+    # ── هارمونی اکتاو فقط در کورس — داخل فضای عمق (ریورب + دیلی) ──
+    hcfg = cfg.get("chorus_harmony")
+    if hcfg and hcfg.get("enabled"):
+        harm = _chorus_harmony_layer(
+            dry, sr,
+            semitones=float(hcfg.get("semitones", 12.0)),
+            reg_thresh=float(hcfg.get("reg_thresh", 1.2)),
+            ranges=hcfg.get("ranges"))
+        if harm is not None:
+            hm = to_mono(harm).astype(np.float32, copy=False)
+            hm = Reverb(room_size=0.85, damping=0.35,
+                        wet_level=1.0, dry_level=0.0, width=1.0)(hm, sr)
+            dl = Delay(delay_seconds=echo_ms / 1000.0, feedback=echo_fb,
+                       mix=1.0)(hm, sr)
+            hm = hm * np.float32(1.0 - echo_mix) + dl * np.float32(echo_mix)
+            del dl
+            harm = _stereo_spread(np.asarray(hm, dtype=np.float32), sr, width=1.0)
+            del hm
+            if len(harm) > n:
+                harm = harm[:n]
+            elif len(harm) < n:
+                harm = np.pad(harm, ((0, n - len(harm)), (0, 0)))
+            h_rms = float(np.sqrt(np.mean(np.square(harm)) + 1e-12))
+            if h_rms > 1e-9:
+                harm = harm * np.float32(db2lin(hcfg.get("level_db", -16.0)) * p_rms / h_rms)
+            np.add(depth, harm, out=depth)
+            del harm
+
     np.add(presence, depth, out=presence)
     del depth
 
@@ -1393,7 +1516,7 @@ def vocal_chain(x, sr, v):
     # ── ویبراتو ریز پیچ (لایه موازی محو) + پهنای استریو پویا ──
     y = y + micro_pitch_vibrato(y, sr)
     rep.append("لرزش ریز پیچ (موازی محو) — حس زنده")
-    y = dynamic_stereo_width(y, sr)
+    y = dynamic_stereo_width(y, sr, {"base_width": float(v.get("stereo_width", 1.0))})
     rep.append("پهنای استریو پویا (نفس‌کشیدن فضا)")
 
     # کلیپ نرم نهایی (به‌جای گارد پیکِ سخت که کل صدا رو کم می‌کرد و LUFS رو
