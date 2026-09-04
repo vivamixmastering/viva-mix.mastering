@@ -971,19 +971,73 @@ def _chorus_envelope(mono, sr, reg_thresh=1.35, ranges=None):
 def _chorus_harmony_layer(dry, sr, semitones=12.0, reg_thresh=1.2, ranges=None):
     """هارمونی اکتاو (WORLD، حافظ فرمت) که فقط در کورس فعاله.
 
-    کل سیگنال با `harmonize` یک اکتاو بالا می‌ره (همون خواننده، همون تیمبر)،
-    بعد با پوشِ کورس ضرب می‌شه تا فقط بخش‌های کورس بمونن (بازه‌های دستی
-    `ranges` یا تشخیص خودکار رجیستر بالا).
+    ⚠️ به‌ینهٔ رم: WORLD فقط روی بازه‌های کورس اجرا می‌شه (نه کل فایل) —
+    چون WORLD پرمصرفه و اجرای اون روی کل آهنگ (بخصوص با ۱ گیگ رم) OOM
+    می‌کنه. هر بازه با حاشیهٔ fade (1.5s) استخراج، پردازش، و با پوشِ
+    هانینگ سر جای خودش گذاشته می‌شه.
     برمی‌گردونه استریوی float32 هم‌طول ورودی، یا None اگه کورسی نباشه.
     """
     mono = to_mono(dry).astype(np.float32, copy=False)
-    env = _chorus_envelope(mono, sr, reg_thresh, ranges)
-    if env.max() < 0.05:
-        return None
-    harm = harmonize(mono, sr, semitones)
-    harm = harm * env[:, None].astype(np.float32)
-    del env
-    return harm
+    n = len(mono)
+    # بازه‌های فعال کورس (ثانیه) — دستی یا خودکار
+    if ranges:
+        segs = [(float(a), float(b)) for a, b in ranges]
+    else:
+        env0 = _chorus_envelope(mono, sr, reg_thresh)
+        if env0.max() < 0.05:
+            return None
+        # استخراج بازه‌های پیوستهٔ فعال از پوش
+        segs = _env_to_ranges(env0, sr)
+        del env0
+        if not segs:
+            return None
+
+    out = np.zeros((n, 2), dtype=np.float32)
+    pad = int(1.5 * sr)  # حاشیه برای fade نرم (بدون کلیک)
+    for a, b in segs:
+        s = int(a * sr)
+        e = int(b * sr)
+        s = max(0, s)
+        e = min(n, e)
+        if e <= s:
+            continue
+        # حاشیهٔ امن برای WORLD (دور از لبه‌ها)
+        s0 = max(0, s - pad)
+        e0 = min(n, e + pad)
+        chunk = mono[s0:e0]
+        harm = harmonize(chunk, sr, semitones)      # WORLD فقط روی این بازه
+        harm = harm[:, 0] if harm.ndim == 2 else harm
+        # پوش نرم: فقط وسطِ بازه (بدون حاشیه)
+        env = np.ones(len(chunk), dtype=np.float32)
+        fade = int(pad)
+        if fade > 0 and len(chunk) > 2 * fade:
+            w = np.hanning(2 * fade).astype(np.float32)
+            env[:fade] = w[:fade]
+            env[-fade:] = w[fade:]
+        harm = harm * env
+        # برگردوندن به موقعیت اصلی
+        ls = s - s0
+        le = ls + (e - s)
+        out[s:e, 0] = harm[ls:le]
+        out[s:e, 1] = harm[ls:le]
+        del harm, chunk, env
+    return out
+
+
+def _env_to_ranges(env, sr, thresh=0.5):
+    """تبدیل پوش 0..1 به لیست بازه‌های [شروع, پایان] (ثانیه)."""
+    active = env > thresh
+    idx = np.where(active)[0]
+    if len(idx) == 0:
+        return []
+    ranges = []
+    start = idx[0]
+    for i in range(1, len(idx)):
+        if idx[i] - idx[i - 1] > sr:  # گپ بیش از 1s
+            ranges.append((start / sr, idx[i - 1] / sr))
+            start = idx[i]
+    ranges.append((start / sr, idx[-1] / sr))
+    return ranges
 
 
 def add_three_layer(presence, dry, sr, cfg):
