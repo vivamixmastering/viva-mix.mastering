@@ -279,7 +279,7 @@ presets:
       freq: 250
       gain_db: -8.0
       q: 0.8
-    gain_db: 5.5
+    gain_db: 2.5
     silk:
       freq: 6000
       drive_db: 2.2
@@ -659,7 +659,7 @@ presets:
       freq: 250
       gain_db: -8.0
       q: 0.8
-    gain_db: 5.5
+    gain_db: 2.5
     silk:
       freq: 6000
       drive_db: 2.2
