@@ -853,7 +853,7 @@ presets:
       body_level_db: -8.0
       depth_pre_delay_ms: 5.0
       body_width: 0.45
-      shimmer_level_db: -16.0
+      shimmer_level_db: -14.0
       depth_echo_ms: 40.0
       depth_echo_fb: 0.3
       depth_echo_mix: 0.35
@@ -867,6 +867,8 @@ presets:
           - 77.0
         - - 123.0
           - 143.0
+      depth_lpf_hz: 12500.0
+      depth_air_mix: 0.25
     slap_delay:
       enabled: false
       time_s: 0.035
@@ -875,7 +877,7 @@ presets:
       freq: 16000
       drive_db: 2.0
       mix: 0.4
-    stereo_width: 2.3
+    stereo_width: 2.1
   mix:
     vocal_gain_db: 1.0
     inst_gain_db: -1.0
@@ -1054,7 +1056,7 @@ presets:
       body_level_db: -8.0
       depth_pre_delay_ms: 5.0
       body_width: 0.45
-      shimmer_level_db: -16.0
+      shimmer_level_db: -14.0
       depth_echo_ms: 40.0
       depth_echo_fb: 0.3
       depth_echo_mix: 0.35
@@ -1064,6 +1066,8 @@ presets:
         level_db: -16.0
         reg_thresh: 1.35
         ranges: *id001
+      depth_lpf_hz: 12500.0
+      depth_air_mix: 0.25
     slap_delay:
       enabled: false
       time_s: 0.035
@@ -1072,7 +1076,7 @@ presets:
       freq: 16000
       drive_db: 2.0
       mix: 0.4
-    stereo_width: 2.3
+    stereo_width: 2.1
   mix:
     vocal_gain_db: 0.8
     inst_gain_db: -1.0

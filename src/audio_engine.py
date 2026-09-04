@@ -825,12 +825,14 @@ def _stereo_spread(mono, sr, width=1.0):
     return np.stack([mid + side, mid - side], axis=1).astype(np.float32)
 
 
-def _depth_layer(dry, sr, pre_delay_ms=35.0, echo_ms=40.0, echo_fb=0.3, echo_mix=0.35):
+def _depth_layer(dry, sr, pre_delay_ms=35.0, echo_ms=40.0, echo_fb=0.3, echo_mix=0.35,
+                 lpf_hz=7500.0, air_mix=0.0):
     """لایهٔ Depth (عمق) — ریوربِ پلیت بلند + دیلی کوتاه + فیلترها.
 
     HPF 250Hz (حذف باس → کدر نشه) → پره‌دلی → ریورب پلیت (فقط خیس، عریض)
-    → دیلی کوتاه (echo، حس اکو/عمق بدون جداشدن از لید) → LPF 7500Hz
-    (حذف تیزی، فقط حس فاصله) → پهن‌کردن استریو.
+    → دیلی کوتاه (echo، حس اکو/عمق بدون جداشدن از لید) → LPF (حذف تیزی،
+    حس فاصله) → اکسایتر هوای اختیاری (دمِ روشن/شیشه‌ای مثل رفرنس) →
+    پهن‌کردن استریو.
     پره‌دلی با np.roll (ریوربِ pedalboard پارامتر پره‌دلی نداره).
     مونو پردازش می‌شه تا مصرف رم نصف بشه؛ عرض در پایان با آل‌پس ساخته می‌شه.
     """
@@ -847,7 +849,13 @@ def _depth_layer(dry, sr, pre_delay_ms=35.0, echo_ms=40.0, echo_fb=0.3, echo_mix
         dl = Delay(delay_seconds=echo_ms / 1000.0, feedback=echo_fb, mix=1.0)(d, sr)
         d = d * np.float32(1.0 - echo_mix) + dl * np.float32(echo_mix)
         del dl
-    d = LowpassFilter(cutoff_frequency_hz=7500.0)(d, sr)
+    if lpf_hz and lpf_hz > 0:
+        d = LowpassFilter(cutoff_frequency_hz=float(lpf_hz))(d, sr)
+    # هوای دمِ ریورب (اختیاری) — دمِ روشن و شیشه‌ای، نه تاریک (مثل رفرنس).
+    if air_mix > 0:
+        d = block_apply(
+            lambda blk: air_exciter(blk, sr, freq=9000.0, drive_db=2.5, mix=air_mix),
+            d, sr, block_s=15.0)
     return _stereo_spread(np.asarray(d, dtype=np.float32), sr, width=1.0)
 
 
@@ -1062,7 +1070,9 @@ def add_three_layer(presence, dry, sr, cfg):
 
     # ── لایهٔ Depth (ریورب + دیلی) ──
     depth = _depth_layer(dry, sr, float(cfg.get("depth_pre_delay_ms", 35.0)),
-                         echo_ms=echo_ms, echo_fb=echo_fb, echo_mix=echo_mix)
+                         echo_ms=echo_ms, echo_fb=echo_fb, echo_mix=echo_mix,
+                         lpf_hz=float(cfg.get("depth_lpf_hz", 7500.0)),
+                         air_mix=float(cfg.get("depth_air_mix", 0.0)))
     if len(depth) > n:
         depth = depth[:n]
     elif len(depth) < n:
