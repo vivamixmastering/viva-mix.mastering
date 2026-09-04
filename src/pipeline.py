@@ -18,7 +18,7 @@ import yaml
 
 from config import PRESETS_FILE, TMP_DIR
 from src.audio_engine import (
-    SR, db2lin, duck_under_vocal, encode_mp3, harmonize, load_audio,
+    SR, db2lin, duck_under_vocal, encode_mp3, load_audio,
     master_chain, mix_only, save_wav, to_stereo, vocal_chain,
 )
 from src.match_eq import (
@@ -63,9 +63,10 @@ def get_mix_model(mid):
 
 # ── فاصله‌های هارمونی: (نیم‌پرده, برچسب) ──
 HARMONY_INTERVALS = {
-    "third_maj": (4, "فاصله سوم (ماژور)"),
-    "third_min": (3, "فاصله سوم (مینور)"),
-    "fifth": (7, "فاصله پنجم"),
+    "octave": (12, "اکتاو"),
+    "third_maj": (4, "سوم ماژور"),
+    "third_min": (3, "سوم مینور"),
+    "fifth": (7, "پنجم"),
 }
 
 
@@ -128,37 +129,51 @@ def process_mode(paths, mode, preset, workdir=None, match=None):
     return out, rep, time.time() - t0
 
 
-# ══════════════════ هارمونی (فاصله سوم/پنجم) ══════════════════
+# ══════════════════ بک وکال طبیعی (هارمونی اکتاو/سوم/پنجم) ══════════════════
 
 def process_harmony(paths, preset, intervals, workdir=None):
-    """وکال رو به فاصله‌های خواسته‌شده جابه‌جا می‌کنه و هرکدوم رو با همون
-    زنجیرهٔ وکالِ پریست پردازش می‌کنه (خروجی آمادهٔ لایه‌گذاری روی وکال اصلی).
+    """بک وکال طبیعی — هارمونی (اکتاو/سوم/پنجم) با WORLD (حافظ فرمت، بدون
+    سنجاب/آلوین) که توی لایهٔ Depth معماری سه‌لایه میکس می‌شه (پشت لید،
+    ~-11dB، با ریورب/دیلی) → یک فایل وکالِ طبیعی با بک وکال، نه چند فایل جدا.
 
     intervals: لیست [(نیم‌پرده, برچسب), ...]
-    خروجی: (list[(مسیر فایل, برچسب)], لیست گزارش, ثانیه زمان)
+    خروجی: (مسیر فایل نهایی, لیست گزارش, ثانیه زمان)
     """
+    import copy as _cp
+    import gc as _gc
     workdir = Path(workdir or TMP_DIR)
     t0 = time.time()
     x, sr = load_audio(paths["vocal"])
-    header = f"🎛️ پریست: {preset['name']} • هارمونی"
-    rep = [header, "🎶 هر فاصله با زنجیرهٔ کامل وکالِ همین پریست:"]
-    outs = []
-    for semis, label in intervals:
-        hs = harmonize(x, sr, semis)
-        y, vrep = vocal_chain(hs, sr, preset.get("vocal", {}))
-        del hs
-        wav = workdir / f"harm_{semis}_{int(time.time())}.wav"
-        save_wav(wav, y, sr)
-        try:
-            mp3 = wav.with_suffix(".mp3")
-            encode_mp3(wav, mp3)
-            p = mp3
-        except Exception as e:
-            log.warning("MP3 encode failed: %s", e)
-            p = wav
-        outs.append((str(p), label))
-        rep.append(f"  • {label}: جابه‌جایی {semis:+d} نیم‌پرده + زنجیرهٔ وکال")
-    return outs, rep, time.time() - t0
+
+    # کپی تنظیمات وکالِ پریست و روشن‌کردن chorus_harmony با فواصل انتخابی
+    cfg = _cp.deepcopy(preset.get("vocal", {}))
+    tl = cfg.setdefault("three_layer", {})
+    tl["enabled"] = True
+    tl["chorus_harmony"] = {
+        "enabled": True,
+        "semitones": [int(s) for s, _ in intervals],
+        "level_db": -11.0,
+    }
+
+    labels = " + ".join(lb for _, lb in intervals)
+    header = f"🎛️ پریست: {preset['name']} • بک وکال"
+    rep = [header, f"🎶 بک وکال طبیعی: {labels} (پشت لید، ~-11dB)"]
+
+    y, vrep = vocal_chain(x, sr, cfg)
+    rep += vrep
+    del x
+    _gc.collect()
+
+    wav = workdir / f"backing_{int(time.time())}.wav"
+    save_wav(wav, y, sr)
+    try:
+        mp3 = wav.with_suffix(".mp3")
+        encode_mp3(wav, mp3)
+        out = mp3
+    except Exception as e:
+        log.warning("MP3 encode failed: %s", e)
+        out = wav
+    return out, rep, time.time() - t0
 
 
 # ══════════════════ میکس خالص (دو استم مسترشده) ══════════════════

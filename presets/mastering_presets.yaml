@@ -54,15 +54,7 @@ presets:
       freq: 10500
       drive_db: 2.2
       mix: 0.32
-    delay:
-      time_s: 0.19
-      feedback: 0.25
-      mix: 0.08
-    reverb:
-      room: 0.35
-      damping: 0.55
-      wet: 0.16
-    out_lufs: -18
+    out_lufs: -9.0
     deplosive:
       threshold_db: -14.0
       ratio: 4.0
@@ -70,6 +62,45 @@ presets:
       freq: 3500.0
       threshold_db: -22.0
       ratio: 3.5
+    leveler:
+      target_db: -19
+      max_db: 2.5
+    three_layer:
+      enabled: true
+      depth_level_db: -11.0
+      body_level_db: -8.0
+      depth_pre_delay_ms: 5.0
+      body_width: 0.45
+      shimmer_level_db: -14.0
+      depth_echo_ms: 40.0
+      depth_echo_fb: 0.3
+      depth_echo_mix: 0.35
+      depth_lpf_hz: 12500.0
+      depth_air_mix: 0.25
+      body_delay_ms: 28.0
+      body_delay_fb: 0.2
+      body_delay_mix: 0.18
+    silk:
+      freq: 6000
+      drive_db: 2.2
+      mix: 0.6
+    stereo_repair: true
+    air2:
+      freq: 16000
+      drive_db: 2.0
+      mix: 0.4
+    eq_warm:
+      freq: 250
+      gain_db: -8.0
+      q: 0.8
+    eq_high_shelf:
+      freq: 8000
+      gain_db: 2.5
+    gain_db: 2.5
+    slap_delay:
+      enabled: false
+      time_s: 0.035
+      mix: 0.06
   mix:
     vocal_gain_db: 1.5
     inst_gain_db: -3.5
@@ -158,15 +189,7 @@ presets:
       freq: 11500
       drive_db: 2.2
       mix: 0.32
-    delay:
-      time_s: 0.15
-      feedback: 0.3
-      mix: 0.06
-    reverb:
-      room: 0.25
-      damping: 0.65
-      wet: 0.1
-    out_lufs: -18
+    out_lufs: -9.0
     deplosive:
       threshold_db: -14.0
       ratio: 4.0
@@ -174,6 +197,45 @@ presets:
       freq: 3500.0
       threshold_db: -22.0
       ratio: 3.5
+    leveler:
+      target_db: -19
+      max_db: 2.5
+    three_layer:
+      enabled: true
+      depth_level_db: -11.0
+      body_level_db: -8.0
+      depth_pre_delay_ms: 5.0
+      body_width: 0.45
+      shimmer_level_db: -14.0
+      depth_echo_ms: 40.0
+      depth_echo_fb: 0.3
+      depth_echo_mix: 0.35
+      depth_lpf_hz: 12500.0
+      depth_air_mix: 0.25
+      body_delay_ms: 28.0
+      body_delay_fb: 0.2
+      body_delay_mix: 0.18
+    silk:
+      freq: 6000
+      drive_db: 2.2
+      mix: 0.6
+    stereo_repair: true
+    air2:
+      freq: 16000
+      drive_db: 2.0
+      mix: 0.4
+    eq_warm:
+      freq: 250
+      gain_db: -8.0
+      q: 0.8
+    eq_high_shelf:
+      freq: 8000
+      gain_db: 2.5
+    gain_db: 2.5
+    slap_delay:
+      enabled: false
+      time_s: 0.035
+      mix: 0.06
   mix:
     vocal_gain_db: 1.5
     inst_gain_db: -4.0
@@ -290,11 +352,16 @@ presets:
       gain_db: 2.5
     three_layer:
       enabled: true
-      depth_level_db: -15.0
+      depth_level_db: -11.0
       body_level_db: -8.0
       depth_pre_delay_ms: 5.0
       body_width: 0.45
-      shimmer_level_db: -16.0
+      shimmer_level_db: -14.0
+      depth_lpf_hz: 12500.0
+      depth_air_mix: 0.25
+      body_delay_ms: 28.0
+      body_delay_fb: 0.2
+      body_delay_mix: 0.18
     slap_delay:
       enabled: false
       time_s: 0.035
@@ -441,15 +508,7 @@ presets:
       freq: 14000
       drive_db: 1.5
       mix: 0.25
-    delay:
-      time_s: 0.19
-      feedback: 0.2
-      mix: 0.05
-    reverb:
-      room: 0.3
-      damping: 0.5
-      wet: 0.12
-    out_lufs: -18
+    out_lufs: -9.0
     deplosive:
       threshold_db: -14.0
       ratio: 4.0
@@ -457,6 +516,45 @@ presets:
       freq: 3500.0
       threshold_db: -22.0
       ratio: 3.5
+    leveler:
+      target_db: -19
+      max_db: 2.5
+    three_layer:
+      enabled: true
+      depth_level_db: -11.0
+      body_level_db: -8.0
+      depth_pre_delay_ms: 5.0
+      body_width: 0.45
+      shimmer_level_db: -14.0
+      depth_echo_ms: 40.0
+      depth_echo_fb: 0.3
+      depth_echo_mix: 0.35
+      depth_lpf_hz: 12500.0
+      depth_air_mix: 0.25
+      body_delay_ms: 28.0
+      body_delay_fb: 0.2
+      body_delay_mix: 0.18
+    silk:
+      freq: 6000
+      drive_db: 2.2
+      mix: 0.6
+    stereo_repair: true
+    air2:
+      freq: 16000
+      drive_db: 2.0
+      mix: 0.4
+    eq_warm:
+      freq: 250
+      gain_db: -8.0
+      q: 0.8
+    eq_high_shelf:
+      freq: 8000
+      gain_db: 2.5
+    gain_db: 2.5
+    slap_delay:
+      enabled: false
+      time_s: 0.035
+      mix: 0.06
   mix:
     vocal_gain_db: 0.5
     inst_gain_db: -1.0
@@ -541,15 +639,7 @@ presets:
       freq: 12000
       drive_db: 2.2
       mix: 0.32
-    delay:
-      time_s: 0.38
-      feedback: 0.3
-      mix: 0.12
-    reverb:
-      room: 0.45
-      damping: 0.5
-      wet: 0.22
-    out_lufs: -18
+    out_lufs: -9.0
     deplosive:
       threshold_db: -14.0
       ratio: 4.0
@@ -557,6 +647,45 @@ presets:
       freq: 3500.0
       threshold_db: -22.0
       ratio: 3.5
+    leveler:
+      target_db: -19
+      max_db: 2.5
+    three_layer:
+      enabled: true
+      depth_level_db: -11.0
+      body_level_db: -8.0
+      depth_pre_delay_ms: 5.0
+      body_width: 0.45
+      shimmer_level_db: -14.0
+      depth_echo_ms: 40.0
+      depth_echo_fb: 0.3
+      depth_echo_mix: 0.35
+      depth_lpf_hz: 12500.0
+      depth_air_mix: 0.25
+      body_delay_ms: 28.0
+      body_delay_fb: 0.2
+      body_delay_mix: 0.18
+    silk:
+      freq: 6000
+      drive_db: 2.2
+      mix: 0.6
+    stereo_repair: true
+    air2:
+      freq: 16000
+      drive_db: 2.0
+      mix: 0.4
+    eq_warm:
+      freq: 250
+      gain_db: -8.0
+      q: 0.8
+    eq_high_shelf:
+      freq: 8000
+      gain_db: 2.5
+    gain_db: 2.5
+    slap_delay:
+      enabled: false
+      time_s: 0.035
+      mix: 0.06
   mix:
     vocal_gain_db: 1.0
     inst_gain_db: -2.0
@@ -670,11 +799,16 @@ presets:
       gain_db: 2.5
     three_layer:
       enabled: true
-      depth_level_db: -15.0
+      depth_level_db: -11.0
       body_level_db: -8.0
       depth_pre_delay_ms: 5.0
       body_width: 0.45
-      shimmer_level_db: -16.0
+      shimmer_level_db: -14.0
+      depth_lpf_hz: 12500.0
+      depth_air_mix: 0.25
+      body_delay_ms: 28.0
+      body_delay_fb: 0.2
+      body_delay_mix: 0.18
     slap_delay:
       enabled: false
       time_s: 0.035
@@ -1213,15 +1347,7 @@ presets:
       freq: 9000
       drive_db: 1.5
       mix: 0.25
-    delay:
-      time_s: 0.22
-      feedback: 0.35
-      mix: 0.1
-    reverb:
-      room: 0.35
-      damping: 0.5
-      wet: 0.19
-    out_lufs: -18
+    out_lufs: -9.0
     deplosive:
       threshold_db: -14.0
       ratio: 4.0
@@ -1229,6 +1355,45 @@ presets:
       freq: 3500.0
       threshold_db: -22.0
       ratio: 3.5
+    leveler:
+      target_db: -19
+      max_db: 2.5
+    three_layer:
+      enabled: true
+      depth_level_db: -11.0
+      body_level_db: -8.0
+      depth_pre_delay_ms: 5.0
+      body_width: 0.45
+      shimmer_level_db: -14.0
+      depth_echo_ms: 40.0
+      depth_echo_fb: 0.3
+      depth_echo_mix: 0.35
+      depth_lpf_hz: 12500.0
+      depth_air_mix: 0.25
+      body_delay_ms: 28.0
+      body_delay_fb: 0.2
+      body_delay_mix: 0.18
+    silk:
+      freq: 6000
+      drive_db: 2.2
+      mix: 0.6
+    stereo_repair: true
+    air2:
+      freq: 16000
+      drive_db: 2.0
+      mix: 0.4
+    eq_warm:
+      freq: 250
+      gain_db: -8.0
+      q: 0.8
+    eq_high_shelf:
+      freq: 8000
+      gain_db: 2.5
+    gain_db: 2.5
+    slap_delay:
+      enabled: false
+      time_s: 0.035
+      mix: 0.06
   mix:
     vocal_gain_db: 0.5
     inst_gain_db: -1.5
@@ -1309,15 +1474,7 @@ presets:
       freq: 8000
       drive_db: 1.0
       mix: 0.2
-    delay:
-      time_s: 0.28
-      feedback: 0.4
-      mix: 0.12
-    reverb:
-      room: 0.5
-      damping: 0.5
-      wet: 0.22
-    out_lufs: -18
+    out_lufs: -9.0
     deplosive:
       threshold_db: -14.0
       ratio: 4.0
@@ -1325,6 +1482,45 @@ presets:
       freq: 3500.0
       threshold_db: -22.0
       ratio: 3.5
+    leveler:
+      target_db: -19
+      max_db: 2.5
+    three_layer:
+      enabled: true
+      depth_level_db: -11.0
+      body_level_db: -8.0
+      depth_pre_delay_ms: 5.0
+      body_width: 0.45
+      shimmer_level_db: -14.0
+      depth_echo_ms: 40.0
+      depth_echo_fb: 0.3
+      depth_echo_mix: 0.35
+      depth_lpf_hz: 12500.0
+      depth_air_mix: 0.25
+      body_delay_ms: 28.0
+      body_delay_fb: 0.2
+      body_delay_mix: 0.18
+    silk:
+      freq: 6000
+      drive_db: 2.2
+      mix: 0.6
+    stereo_repair: true
+    air2:
+      freq: 16000
+      drive_db: 2.0
+      mix: 0.4
+    eq_warm:
+      freq: 250
+      gain_db: -8.0
+      q: 0.8
+    eq_high_shelf:
+      freq: 8000
+      gain_db: 2.5
+    gain_db: 2.5
+    slap_delay:
+      enabled: false
+      time_s: 0.035
+      mix: 0.06
   mix:
     vocal_gain_db: 0.5
     inst_gain_db: -1.0
@@ -1410,15 +1606,7 @@ presets:
       freq: 10500
       drive_db: 2.0
       mix: 0.3
-    delay:
-      time_s: 0.19
-      feedback: 0.22
-      mix: 0.07
-    reverb:
-      room: 0.32
-      damping: 0.55
-      wet: 0.14
-    out_lufs: -18
+    out_lufs: -9.0
     deplosive:
       threshold_db: -14.0
       ratio: 4.0
@@ -1426,6 +1614,45 @@ presets:
       freq: 3500.0
       threshold_db: -22.0
       ratio: 3.5
+    leveler:
+      target_db: -19
+      max_db: 2.5
+    three_layer:
+      enabled: true
+      depth_level_db: -11.0
+      body_level_db: -8.0
+      depth_pre_delay_ms: 5.0
+      body_width: 0.45
+      shimmer_level_db: -14.0
+      depth_echo_ms: 40.0
+      depth_echo_fb: 0.3
+      depth_echo_mix: 0.35
+      depth_lpf_hz: 12500.0
+      depth_air_mix: 0.25
+      body_delay_ms: 28.0
+      body_delay_fb: 0.2
+      body_delay_mix: 0.18
+    silk:
+      freq: 6000
+      drive_db: 2.2
+      mix: 0.6
+    stereo_repair: true
+    air2:
+      freq: 16000
+      drive_db: 2.0
+      mix: 0.4
+    eq_warm:
+      freq: 250
+      gain_db: -8.0
+      q: 0.8
+    eq_high_shelf:
+      freq: 8000
+      gain_db: 2.5
+    gain_db: 2.5
+    slap_delay:
+      enabled: false
+      time_s: 0.035
+      mix: 0.06
   mix:
     vocal_gain_db: 0.5
     inst_gain_db: -2.0
@@ -1506,15 +1733,7 @@ presets:
       freq: 14000
       drive_db: 2.2
       mix: 0.32
-    delay:
-      time_s: 0.42
-      feedback: 0.35
-      mix: 0.1
-    reverb:
-      room: 0.55
-      damping: 0.5
-      wet: 0.22
-    out_lufs: -18
+    out_lufs: -9.0
     deplosive:
       threshold_db: -14.0
       ratio: 4.0
@@ -1522,6 +1741,45 @@ presets:
       freq: 3500.0
       threshold_db: -22.0
       ratio: 3.5
+    leveler:
+      target_db: -19
+      max_db: 2.5
+    three_layer:
+      enabled: true
+      depth_level_db: -11.0
+      body_level_db: -8.0
+      depth_pre_delay_ms: 5.0
+      body_width: 0.45
+      shimmer_level_db: -14.0
+      depth_echo_ms: 40.0
+      depth_echo_fb: 0.3
+      depth_echo_mix: 0.35
+      depth_lpf_hz: 12500.0
+      depth_air_mix: 0.25
+      body_delay_ms: 28.0
+      body_delay_fb: 0.2
+      body_delay_mix: 0.18
+    silk:
+      freq: 6000
+      drive_db: 2.2
+      mix: 0.6
+    stereo_repair: true
+    air2:
+      freq: 16000
+      drive_db: 2.0
+      mix: 0.4
+    eq_warm:
+      freq: 250
+      gain_db: -8.0
+      q: 0.8
+    eq_high_shelf:
+      freq: 8000
+      gain_db: 2.5
+    gain_db: 2.5
+    slap_delay:
+      enabled: false
+      time_s: 0.035
+      mix: 0.06
   mix:
     vocal_gain_db: 0.5
     inst_gain_db: -2.0

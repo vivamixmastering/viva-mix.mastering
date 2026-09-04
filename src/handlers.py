@@ -57,7 +57,7 @@ class Step(StatesGroup):
     wait_mode = State()
     wait_preset = State()
     wait_mixmodel = State()    # در انتظار انتخاب مدل میکس خالص
-    wait_interval = State()    # در انتظار انتخاب فاصلهٔ هارمونی (سوم/پنجم)
+    wait_interval = State()    # در انتظار انتخاب فاصلهٔ بک وکال (اکتاو/سوم/پنجم)
 
 
 # ══════════════════ ابزارهای کمکی ══════════════════
@@ -124,7 +124,7 @@ def _mode_kb():
     b.button(text="🎤 وکال خالی", callback_data="m:vocal")
     b.button(text="🎵 آهنگ کامل (فقط مستر)", callback_data="m:full")
     b.button(text="🔀 میکس خالص (استم‌های مسترشده)", callback_data="m:mix")
-    b.button(text="🎶 هارمونی (فاصله سوم/پنجم)", callback_data="m:harmony")
+    b.button(text="🎶 بک وکال (اکتاو/سوم/پنجم)", callback_data="m:harmony")
     b.button(text="🎯 مطابق مرجع (بدون پریست)", callback_data="m:match")
     b.adjust(2)
     return b.as_markup()
@@ -132,11 +132,13 @@ def _mode_kb():
 
 def _interval_kb():
     b = _kb()
-    b.button(text="3️⃣ سوم (ماژور +4)", callback_data="h:third_maj")
-    b.button(text="3️⃣ سوم (مینور +3)", callback_data="h:third_min")
+    b.button(text="🎵 اکتاو (+12)", callback_data="h:octave")
+    b.button(text="3️⃣ سوم ماژور (+4)", callback_data="h:third_maj")
+    b.button(text="3️⃣ سوم مینور (+3)", callback_data="h:third_min")
     b.button(text="5️⃣ پنجم (+7)", callback_data="h:fifth")
-    b.button(text="🎵 سوم + پنجم (هر دو)", callback_data="h:both")
-    b.adjust(1)
+    b.button(text="🎶 اکتاو + پنجم", callback_data="h:octave_fifth")
+    b.button(text="🎶 اکتاو + سوم + پنجم", callback_data="h:full")
+    b.adjust(2)
     return b.as_markup()
 
 
@@ -174,7 +176,7 @@ async def _ask_mode(msg, state, edit=False):
             "🎤 <b>وکال خالی</b> — فقط صدای خودت؛ زنجیرهٔ کامل وکال\n"
             "🎵 <b>آهنگ کامل</b> — فقط مسترینگ (زنجیرهٔ بیت)\n"
             "🔀 <b>میکس خالص</b> — دو استمِ مسترشده (وکال + بیت)؛ فقط بالانس\n"
-            "🎶 <b>هارمونی</b> — وکال رو به فاصلهٔ سوم/پنجم می‌بره (برای لایه‌گذاری)\n"
+            "🎶 <b>بک وکال</b> — هارمونی اکتاو/سوم/پنجم پشت لید (طبیعی، بدون سنجاب)\n"
             "🎯 <b>مطابق مرجع</b> — بدون پریست، دقیقاً با منحنی آهنگ مرجع")
     if edit:
         await msg.edit_text(text, reply_markup=_mode_kb(), parse_mode="HTML")
@@ -510,14 +512,14 @@ async def on_mode(cb: CallbackQuery, state: FSMContext):
         await cb.answer()
         return
 
-    # ── هارمونی: انتخاب فاصله (سوم/پنجم) ──
+    # ── بک وکال: انتخاب فاصله (اکتاو/سوم/پنجم) ──
     if mode == "harmony":
         await state.update_data(mode=mode)
         await state.set_state(Step.wait_interval)
         await cb.message.edit_text(
-            "🎶 <b>هارمونی — کدوم فاصله؟</b>\n" + SEP + "\n"
-            "وکال رو به این فاصله جابه‌جا می‌کنم و با همون پریستِ وکال "
-            "پردازش می‌کنم تا خودت روش لایه بذاری.",
+            "🎶 <b>بک وکال — کدوم فاصله؟</b>\n" + SEP + "\n"
+            "هارمونی رو با WORLD (حافظ فرمت — بدون سنجاب/آلوین) می‌سازم و "
+            "توی لایهٔ عمق، پشت وکال اصلی میکس می‌کنم (طبیعی، ~-11dB).",
             reply_markup=_interval_kb(), parse_mode="HTML")
         await cb.answer()
         return
@@ -531,7 +533,7 @@ async def on_mode(cb: CallbackQuery, state: FSMContext):
     await cb.answer()
 
 
-# ══════════════════ انتخاب فاصلهٔ هارمونی ══════════════════
+# ══════════════════ انتخاب فاصلهٔ بک وکال ══════════════════
 
 @router.callback_query(F.data.startswith("h:"))
 async def on_interval(cb: CallbackQuery, state: FSMContext):
@@ -545,7 +547,18 @@ async def on_interval(cb: CallbackQuery, state: FSMContext):
         await cb.answer("اول فایل وکال بفرست!")
         return
 
-    if iv == "both":
+    if iv == "full":
+        intervals = [
+            HARMONY_INTERVALS["octave"],
+            HARMONY_INTERVALS["third_maj"],
+            HARMONY_INTERVALS["fifth"],
+        ]
+    elif iv == "octave_fifth":
+        intervals = [
+            HARMONY_INTERVALS["octave"],
+            HARMONY_INTERVALS["fifth"],
+        ]
+    elif iv == "both":
         intervals = [
             HARMONY_INTERVALS["third_maj"],
             HARMONY_INTERVALS["fifth"],
@@ -557,7 +570,7 @@ async def on_interval(cb: CallbackQuery, state: FSMContext):
     await state.set_state(Step.wait_preset)
     labels = " + ".join(lb for _, lb in intervals)
     await cb.message.edit_text(
-        f"🎶 هارمونی انتخاب شد: <b>{labels}</b>\n" + SEP + "\n"
+        f"🎶 بک وکال انتخاب شد: <b>{labels}</b>\n" + SEP + "\n"
         "🎚️ <b>حالا پریستِ وکال رو انتخاب کن:</b>",
         reply_markup=_preset_kb(), parse_mode="HTML")
     await cb.answer()
@@ -666,24 +679,24 @@ async def on_preset(cb: CallbackQuery, state: FSMContext):
         if mode == "full":
             paths["full"] = first["path"]
 
-        # ── هارمونی: چند فایل خروجی (هر فاصله جدا) ──
+        # ── بک وکال: یک فایل خروجی (هارمونی طبیعی پشت لید) ──
         if mode == "harmony":
-            intervals = ds.get("intervals") or [HARMONY_INTERVALS["third_maj"]]
-            outs, rep, dt = await _run_async(process_harmony, paths, preset,
-                                             intervals, workdir)
+            intervals = ds.get("intervals") or [HARMONY_INTERVALS["octave"]]
+            out, rep, dt = await _run_async(process_harmony, paths, preset,
+                                            intervals, workdir)
+            labels = " + ".join(lb for _, lb in intervals)
             await progress.delete()
             await cb.message.answer(
-                f"✅ <b>هارمونی تموم شد!</b>\n" + SEP + "\n"
+                f"✅ <b>بک وکال تموم شد!</b>\n" + SEP + "\n"
                 f"⏱ زمان: {dt:.0f} ثانیه\n"
-                f"🎛️ پریست: {preset['name']}\n" + SEP + "\n"
+                f"🎛️ پریست: {preset['name']}\n"
+                f"🎶 فواصل: {labels}\n" + SEP + "\n"
                 + "\n".join(rep),
                 parse_mode="HTML")
-            for path, label in outs:
-                fname = f"harmony_{preset['id']}_{label.replace(' ', '_')}.mp3"
-                await cb.message.answer_audio(
-                    FSInputFile(path, filename=fname),
-                    title=f"{preset['name']} — {label}",
-                    performer="Viva MixMaster")
+            await cb.message.answer_audio(
+                FSInputFile(out, filename=f"backing_{preset['id']}.mp3"),
+                title=f"{preset['name']} — بک وکال",
+                performer="Viva MixMaster")
             return
 
         out, rep, dt = await _run_async(process_mode, paths, mode, preset,
