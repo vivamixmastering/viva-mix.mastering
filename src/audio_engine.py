@@ -859,11 +859,13 @@ def _depth_layer(dry, sr, pre_delay_ms=35.0, echo_ms=40.0, echo_fb=0.3, echo_mix
     return _stereo_spread(np.asarray(d, dtype=np.float32), sr, width=1.0)
 
 
-def _body_layer(dry, sr, body_width=0.45, drive_db=4.5):
+def _body_layer(dry, sr, body_width=0.45, drive_db=4.5,
+                delay_ms=0.0, delay_fb=0.25, delay_mix=0.15):
     """لایهٔ Body (میانی) — کمپرسور سنگین + گرمای هارمونیک برای ضخامت.
 
-    کمپرسور 5:1 → EQ گرم (+3dB @250Hz) + کات تیزی (-2dB @5000Hz)
-    → اشباع لامپی (tanh اورسمپل‌شده، گرم نه خشن) → پهنای نیمه‌عریض.
+    کمپرسور 5:1 → EQ (کات 250 و 5000 برای مهار گل) → اشباع لامپی
+    (tanh اورسمپل‌شده، گرم نه خشن) → دیلی کوتاه اختیاری (ضخامت
+    early-reflection، نه اکوی محسوس) → ریورب سبک → پهنای نیمه‌عریض.
     مونو پردازش می‌شه؛ عرض در پایان با آل‌پس ساخته می‌شه (body_width).
     """
     b = to_mono(dry).astype(np.float32, copy=False)
@@ -878,9 +880,15 @@ def _body_layer(dry, sr, body_width=0.45, drive_db=4.5):
     # drive کمتر → هارمونیک‌های پایین (500/750Hz) که گل 300-1000 رو زیاد
     # می‌کردن کمتر تولید بشن.
     b = saturation(b, sr, drive_db=drive_db, mix=0.45, asym=0.12)
+    # دیلی کوتاه اختیاری — ضخامت early-reflection (نه اکوی محسوس؛ کوتاه‌تر
+    # از ۱۳۰ms قبلی که حس «لگ» می‌داد).
+    if delay_ms > 0 and delay_mix > 0:
+        from pedalboard import Delay
+        dl = Delay(delay_seconds=float(delay_ms) / 1000.0, feedback=float(delay_fb),
+                   mix=1.0)(b, sr)
+        b = b * np.float32(1.0 - delay_mix) + dl * np.float32(delay_mix)
+        del dl
     # ریورب سبک — لایهٔ میانی دیگه خشک نباشه (حس فضا/عمق).
-    # ⚠️ دیلی قبلاً ۱۳۰ms بود و حس «اکو/لگ» نسبت به لایهٔ رویی می‌داد
-    # → حذف شد؛ فقط ریورب سبک مونده (بدون تکرارِ قابل‌شنیدن).
     from pedalboard import Reverb
     b = np.asarray(Reverb(room_size=0.35, damping=0.5,
                           wet_level=0.2, dry_level=1.0, width=1.0)(b, sr),
@@ -977,59 +985,58 @@ def _chorus_envelope(mono, sr, reg_thresh=1.35, ranges=None):
 
 
 def _chorus_harmony_layer(dry, sr, semitones=12.0, reg_thresh=1.2, ranges=None):
-    """هارمونی اکتاو (WORLD، حافظ فرمت) که فقط در کورس فعاله.
+    """بک وکال هارمونی (WORLD، حافظ فرمت) — یک یا چند فاصله، کورس یا کل آهنگ.
 
-    ⚠️ به‌ینهٔ رم: WORLD فقط روی بازه‌های کورس اجرا می‌شه (نه کل فایل) —
-    چون WORLD پرمصرفه و اجرای اون روی کل آهنگ (بخصوص با ۱ گیگ رم) OOM
-    می‌کنه. هر بازه با حاشیهٔ fade (1.5s) استخراج، پردازش، و با پوشِ
-    هانینگ سر جای خودش گذاشته می‌شه.
-    برمی‌گردونه استریوی float32 هم‌طول ورودی، یا None اگه کورسی نباشه.
+    - semitones: عدد یا لیست فواصل (مثلاً [12, 7] = اکتاو + پنجم).
+    - ranges: بازه‌های کورس (ثانیه)؛ اگه None باشه کل آهنگ پوشش داده می‌شه.
+    بهینه‌سازی رم: چند فاصله پشت‌سرهم (نه همزمان) تولید و در یک بافر float32
+    جمع می‌شن؛ WORLD فقط روی هر بازه/بلوک اجرا می‌شه تا رم قله نزنه.
+    برمی‌گردونه مونوی float32 هم‌طول ورودی.
     """
     mono = to_mono(dry).astype(np.float32, copy=False)
     n = len(mono)
-    # بازه‌های فعال کورس (ثانیه) — دستی یا خودکار
+    if isinstance(semitones, (list, tuple)):
+        semis = [float(s) for s in semitones]
+    else:
+        semis = [float(semitones)]
+
+    # بازه‌ها: دستی (کورس) یا کل آهنگ
     if ranges:
         segs = [(float(a), float(b)) for a, b in ranges]
+        use_fade = True
     else:
-        env0 = _chorus_envelope(mono, sr, reg_thresh)
-        if env0.max() < 0.05:
-            return None
-        # استخراج بازه‌های پیوستهٔ فعال از پوش
-        segs = _env_to_ranges(env0, sr)
-        del env0
-        if not segs:
-            return None
+        segs = [(0.0, n / sr)]          # کل آهنگ
+        use_fade = False
 
-    out = np.zeros((n, 2), dtype=np.float32)
+    acc = np.zeros(n, dtype=np.float32)  # جمع همهٔ فواصل در یک بافر مونو
     pad = int(1.5 * sr)  # حاشیه برای fade نرم (بدون کلیک)
-    for a, b in segs:
-        s = int(a * sr)
-        e = int(b * sr)
-        s = max(0, s)
-        e = min(n, e)
-        if e <= s:
-            continue
-        # حاشیهٔ امن برای WORLD (دور از لبه‌ها)
-        s0 = max(0, s - pad)
-        e0 = min(n, e + pad)
-        chunk = mono[s0:e0]
-        harm = harmonize(chunk, sr, semitones)      # WORLD فقط روی این بازه
-        harm = harm[:, 0] if harm.ndim == 2 else harm
-        # پوش نرم: فقط وسطِ بازه (بدون حاشیه)
-        env = np.ones(len(chunk), dtype=np.float32)
-        fade = int(pad)
-        if fade > 0 and len(chunk) > 2 * fade:
-            w = np.hanning(2 * fade).astype(np.float32)
-            env[:fade] = w[:fade]
-            env[-fade:] = w[fade:]
-        harm = harm * env
-        # برگردوندن به موقعیت اصلی
-        ls = s - s0
-        le = ls + (e - s)
-        out[s:e, 0] = harm[ls:le]
-        out[s:e, 1] = harm[ls:le]
-        del harm, chunk, env
-    return out
+    for semi in semis:
+        for a, b in segs:
+            s = max(0, int(a * sr))
+            e = min(n, int(b * sr))
+            if e <= s:
+                continue
+            # حاشیهٔ امن برای WORLD (دور از لبه‌ها)
+            s0 = max(0, s - pad)
+            e0 = min(n, e + pad)
+            chunk = mono[s0:e0]
+            h = harmonize(chunk, sr, semi)   # مونو float32
+            # پوش نرم: فقط وسطِ بازه (وقتی بازه واقعاً کوتاه‌تر از کل باشه)
+            if use_fade:
+                env = np.ones(len(chunk), dtype=np.float32)
+                fade = int(pad)
+                if fade > 0 and len(chunk) > 2 * fade:
+                    w = np.hanning(2 * fade).astype(np.float32)
+                    env[:fade] = w[:fade]
+                    env[-fade:] = w[fade:]
+                h = h * env
+                del env
+            # برگردوندن به موقعیت اصلی
+            ls = s - s0
+            le = ls + (e - s)
+            acc[s:e] += h[ls:le]
+            del h, chunk
+    return acc
 
 
 def _env_to_ranges(env, sr, thresh=0.5):
@@ -1086,18 +1093,19 @@ def add_three_layer(presence, dry, sr, cfg):
     if hcfg and hcfg.get("enabled"):
         harm = _chorus_harmony_layer(
             dry, sr,
-            semitones=float(hcfg.get("semitones", 12.0)),
+            semitones=hcfg.get("semitones", 12.0),
             reg_thresh=float(hcfg.get("reg_thresh", 1.2)),
             ranges=hcfg.get("ranges"))
         if harm is not None:
-            hm = to_mono(harm).astype(np.float32, copy=False)
+            # هارمونی مونو برگشته — ریورب/دیلی مونو، سپس پهن‌کردن در انتها
+            hm = np.asarray(harm, dtype=np.float32)
             hm = Reverb(room_size=0.85, damping=0.35,
                         wet_level=1.0, dry_level=0.0, width=1.0)(hm, sr)
             dl = Delay(delay_seconds=echo_ms / 1000.0, feedback=echo_fb,
                        mix=1.0)(hm, sr)
             hm = hm * np.float32(1.0 - echo_mix) + dl * np.float32(echo_mix)
             del dl
-            harm = _stereo_spread(np.asarray(hm, dtype=np.float32), sr, width=1.0)
+            harm = _stereo_spread(hm, sr, width=1.0)
             del hm
             if len(harm) > n:
                 harm = harm[:n]
@@ -1113,7 +1121,10 @@ def add_three_layer(presence, dry, sr, cfg):
     del depth
 
     # ── لایهٔ Body ──
-    body = _body_layer(dry, sr, body_width=float(cfg.get("body_width", 0.45)))
+    body = _body_layer(dry, sr, body_width=float(cfg.get("body_width", 0.45)),
+                       delay_ms=float(cfg.get("body_delay_ms", 0.0)),
+                       delay_fb=float(cfg.get("body_delay_fb", 0.25)),
+                       delay_mix=float(cfg.get("body_delay_mix", 0.15)))
     if len(body) > n:
         body = body[:n]
     elif len(body) < n:
@@ -1603,8 +1614,8 @@ def harmonize(x, sr, semitones):
     (بدون اثر میکی‌موس/سنجاب). برخلاف PitchShift ساده که فرمت‌ها رو هم
     همراه پیت جابه‌جا می‌کنه.
 
-    semitones مثبت = زیرتر (بالا). خروجی: استریو float32 هم‌طول ورودی.
-    پردازش بلوکی (۶۰s + هم‌پوشانی نرم) برای مصرف رم کم روی سرویس ۱ گیگی."""
+    semitones مثبت = زیرتر (بالا). خروجی: مونو float32 هم‌طول ورودی.
+    پردازش بلوکی (۲۰s + هم‌پوشانی نرم) برای مصرف رم کم روی سرویس ۱ گیگی."""
     try:
         import pyworld as pw
     except Exception as e:
@@ -1612,30 +1623,33 @@ def harmonize(x, sr, semitones):
         from pedalboard import PitchShift
         y = to_stereo(x).astype(np.float32)
         return np.asarray(PitchShift(semitones=float(semitones))(y, sr),
-                          dtype=np.float32)
+                          dtype=np.float32).mean(axis=1).astype(np.float32)
 
     semis = float(semitones)
     if abs(semis) < 0.05:
-        return to_stereo(x).astype(np.float32)
+        return to_mono(x).astype(np.float32)
 
-    single = x.ndim == 1
-    mono = to_mono(x).astype(np.float64)
+    mono = to_mono(x)
+    if mono.dtype != np.float32:
+        mono = mono.astype(np.float32)
     n = len(mono)
 
     def _shift_block(blk, s_ratio):
-        # WORLD: تحلیل F0 + پوش طیفی + ناپریودیک → فقط F0 جابه‌جا → سنتز
-        _f0, t_est = pw.dio(blk, sr)
-        f0 = pw.stonemask(blk, _f0, t_est, sr)
-        sp = pw.cheaptrick(blk, f0, t_est, sr)
-        ap = pw.d4c(blk, f0, t_est, sr)
+        # WORLD فقط روی این بلوک float64 می‌شه (نه کل فایل) → رم قله نمی‌زنه
+        blk64 = blk.astype(np.float64)
+        _f0, t_est = pw.dio(blk64, sr)
+        f0 = pw.stonemask(blk64, _f0, t_est, sr)
+        sp = pw.cheaptrick(blk64, f0, t_est, sr)
+        ap = pw.d4c(blk64, f0, t_est, sr)
         f0_s = f0 * s_ratio
         out = pw.synthesize(f0_s, sp, ap, sr)
+        del blk64, _f0, t_est, f0, sp, ap
         if len(out) < len(blk):
             out = np.pad(out, (0, len(blk) - len(out)))
         return out[: len(blk)]
 
     # بلوک‌بندی با هم‌پوشانی نرم (بدون کلیک در مرزها)
-    blk_s = 60.0
+    blk_s = 20.0
     ov_s = 2.0
     blen = int(blk_s * sr)
     ov = int(ov_s * sr)
@@ -1643,21 +1657,23 @@ def harmonize(x, sr, semitones):
     if n <= blen:
         out = _shift_block(mono, r).astype(np.float32)
     else:
-        out = np.zeros(n, dtype=np.float64)
-        w = np.zeros(n, dtype=np.float64)
+        out = np.zeros(n, dtype=np.float32)
+        w = np.zeros(n, dtype=np.float32)
         pos = 0
         while pos < n:
             end = min(pos + blen, n)
-            seg = _shift_block(mono[pos:end], r)
-            fade = np.hanning(end - pos)
+            seg = _shift_block(mono[pos:end], r).astype(np.float32)
+            fade = np.hanning(end - pos).astype(np.float32)
             out[pos:end] += seg * fade
             w[pos:end] += fade
+            del seg
             if end >= n:
                 break
             pos += blen - ov
-        out = (out / np.maximum(w, 1e-8)).astype(np.float32)
+        np.divide(out, np.maximum(w, np.float32(1e-8)), out=out)
+        del w
 
-    return to_stereo(out).astype(np.float32)
+    return out.astype(np.float32, copy=False)
 
 
 # ══════════════════ داینامیک EQ (تفکیک سازها) ══════════════════
