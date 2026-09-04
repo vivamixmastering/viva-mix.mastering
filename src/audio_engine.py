@@ -1126,10 +1126,9 @@ def add_three_layer(presence, dry, sr, cfg):
     np.add(presence, sh, out=presence)
     del sh
 
-    # گارد پیک
-    pk = float(np.max(np.abs(presence)))
-    if pk > 0.985:
-        presence = presence * np.float32(0.985 / pk)
+    # ⚠️ گارد پیک سخت قبلی (0.985) کل ترکیب رو scale-down می‌کرد و گینِ
+    # خروجی رو بی‌اثر می‌کرد → حذف شد. پیک‌ها رو soft_clipِ پایانیِ
+    # زنجیرهٔ وکال نرم می‌کنه.
     return presence.astype(np.float32)
 
 
@@ -1548,15 +1547,15 @@ def vocal_chain(x, sr, v):
         rep.append("فضاسازی حرفه‌ای (پره‌دلی + دیلی + ریورب + هوای دم)")
 
     target = v.get("out_lufs", -18.0)
-    y = normalize_lufs(y, sr, target=target, ceiling_db=-1.0)
+    y = normalize_lufs(y, sr, target=target, ceiling_db=-0.3)
     rep.append(f"نرمال‌سازی وکال → {target} LUFS")
     # گین صریح خروجی (کنترل قدرت/بلندی مستقیم، جدا از نرمال‌سازی LUFS)
+    # ⚠️ گارد پیک سخت قبلی (0.98) کل صدا رو scale-down می‌کرد و گین رو بی‌اثر
+    # می‌کرد → حذف شد؛ پیک‌ها رو soft_clip پایانی نرم می‌کنه، پس بدنهٔ صدا
+    # واقعاً بلندتر می‌شه (نه اینکه دوباره پایین کشیده بشه).
     g = v.get("gain_db")
     if g:
         y = y * np.float32(db2lin(g))
-        pk = float(np.max(np.abs(y)))
-        if pk > 0.98:                      # گارد پیک — بدون دیستورت
-            y = y * np.float32(0.98 / pk)
         rep.append(f"گین خروجی +{g:g}dB (قدرت بیشتر)")
 
     # ── معماری سه‌لایه (Depth/Body/Presence) — عمق و چندبعدی بودن ──
@@ -1789,6 +1788,13 @@ def master_chain(x, sr, m):
         y = PeakFilter(cutoff_frequency_hz=dip["freq"], gain_db=dip["gain_db"],
                        q=dip.get("q", 1.2))(y, sr)
         rep.append(f"اصلاح میدرنج مستر ({dip['gain_db']:+g}dB @ {dip['freq']}Hz)")
+
+    # کات باس (گیتار بیس بوم/جر) — پیک کات جدا روی ناحیهٔ ۶۰–۱۵۰Hz
+    bcut = m.get("eq_bass_cut")
+    if bcut:
+        y = PeakFilter(cutoff_frequency_hz=bcut["freq"], gain_db=bcut["gain_db"],
+                       q=bcut.get("q", 0.8))(y, sr)
+        rep.append(f"کات باس گیتار ({bcut['gain_db']:+g}dB @ {bcut['freq']}Hz)")
 
     # داینامیک EQ — کات فقط موقع شلوغی باند (تفکیک سازها، نه کات همیشگی)
     deq = m.get("dyn_eq")
