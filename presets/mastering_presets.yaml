@@ -931,18 +931,18 @@ presets:
       mix: 0.35
     eq_low_shelf:
       freq: 200
-      gain_db: -3.0
+      gain_db: -0.5
     eq_dip:
       freq: 250
-      gain_db: -5.0
+      gain_db: -1.5
       q: 2.5
     eq_presence:
       freq: 2500
-      gain_db: 4.0
+      gain_db: 1.5
       q: 1.0
     eq_gloss:
       freq: 9500
-      gain_db: 3.0
+      gain_db: 2.0
       q: 0.9
     eq_air_shelf:
       freq: 11000
@@ -970,7 +970,7 @@ presets:
       ratio: 3.0
     eq_warm:
       freq: 250
-      gain_db: -8.0
+      gain_db: -2.0
       q: 0.8
     gain_db: 2.5
     silk:
@@ -980,7 +980,7 @@ presets:
     stereo_repair: true
     eq_high_shelf:
       freq: 8000
-      gain_db: 2.5
+      gain_db: 3.5
     three_layer:
       enabled: true
       depth_level_db: -11.0
@@ -1020,15 +1020,15 @@ presets:
     working_lufs: -18
     hpf_hz: 25
     eq_dip:
-      freq: 320
-      gain_db: -2.5
-      q: 0.8
+      freq: 1500
+      gain_db: -4.0
+      q: 0.9
     eq_low_shelf:
-      freq: 45
-      gain_db: 1.5
+      freq: 40
+      gain_db: 10.0
     eq_high_shelf:
-      freq: 8000
-      gain_db: 3.5
+      freq: 12000
+      gain_db: 2.0
     width: 0.7
     sat:
       drive_db: 0.45
@@ -1038,9 +1038,9 @@ presets:
     lufs: -10.5
     ceiling: -1.5
     eq_presence:
-      freq: 3500
-      gain_db: 1.5
-      q: 1.1
+      freq: 5000
+      gain_db: -4.0
+      q: 1.0
     multiband:
       crossover_low: 150
       crossover_high: 3000
@@ -1059,7 +1059,7 @@ presets:
         ratio: 1.3
         attack_ms: 22
         release_ms: 120
-        gain_db: 0.6
+        gain_db: 0.0
     bass_mono:
       freq: 100
     gate:
@@ -1096,12 +1096,12 @@ presets:
         gain_db: 1.2
     dither: true
     eq_bass_cut:
-      freq: 100
-      gain_db: -4.0
-      q: 0.8
+      freq: 110
+      gain_db: -6.0
+      q: 1.0
     eq_gloss:
       freq: 5500
-      gain_db: 2.5
+      gain_db: 0.0
       q: 0.9
 - id: viva_bedler
   name: 🎵 ویوا بدلر
