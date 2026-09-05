@@ -164,12 +164,18 @@ def _band_deess(x, sr, lo_hz, hi_hz, threshold_db, ratio,
     band = lowpass(hp, sr, hi_hz, order=4)
     del hp
     env = env_follow(band, sr, attack_ms, release_ms)
-    over = np.maximum(lin2db(env) - np.float32(threshold_db), 0.0)
-    gr = over * (1.0 - 1.0 / ratio)
+    # gain درجا روی env (بدون آرایه‌های واسط full-size)
+    np.maximum(env, np.float32(1e-10), out=env)
+    np.log10(env, out=env)
+    np.multiply(env, np.float32(20.0), out=env)         # env_db
+    np.subtract(env, np.float32(threshold_db), out=env) # env_db - thr
+    np.maximum(env, np.float32(0.0), out=env)
+    np.multiply(env, np.float32(1.0 - 1.0 / ratio), out=env)  # gr
     if max_cut_db is not None:
-        gr = np.minimum(gr, np.float32(max_cut_db))  # سقف کاهش گین (Range)
-    gain = db2lin(-gr).astype(np.float32)
-    del env, over, gr
+        np.minimum(env, np.float32(max_cut_db), out=env)  # سقف (Range)
+    np.multiply(env, np.float32(-1.0 / 20.0), out=env)
+    np.power(np.float32(10.0), env, out=env)            # gain = 10^(-gr/20)
+    gain = env
     if gain.ndim == 1 and x.ndim == 2:
         gain = gain[:, None]
     # out = (x - band) + band*gain = x + band*(gain - 1)  — بدون آرایهٔ rest جدا
@@ -394,15 +400,24 @@ def bass_monoize(x, sr, freq=130.0):
 
 def noise_gate(x, sr, threshold_db=-50.0, ratio=3.0,
                attack_ms=3.0, release_ms=90.0):
-    """گیت نرم — نویز و هیس سکوت‌ها (بین کلمات) رو می‌بنده بدون آسیب به آواز"""
+    """گیت نرم — نویز و هیس سکوت‌ها (بین کلمات) رو می‌بنده بدون آسیب به آواز
+
+    ⚠️ gain کاملاً درجا روی آرایهٔ پوش محاسبه می‌شه (قبلاً eb/below/gr/gain
+    چهار آرایهٔ full-size می‌ساختن → روی فایل‌های بلند ~۱۷۰MB هدر)."""
     e = env_follow(x, sr, attack_ms, release_ms)
-    eb = lin2db(e)
-    below = threshold_db - eb
-    gr = np.maximum(below, np.float32(0.0)) * (ratio - 1.0) / ratio
-    gain = db2lin(-gr)
+    # e → gain، همه درجا
+    np.maximum(e, np.float32(1e-10), out=e)
+    np.log10(e, out=e)
+    np.multiply(e, np.float32(20.0), out=e)          # eb = 20·log10(e)
+    np.negative(e, out=e)
+    np.add(e, np.float32(threshold_db), out=e)       # below = thr - eb
+    np.maximum(e, np.float32(0.0), out=e)
+    np.multiply(e, np.float32((ratio - 1.0) / ratio), out=e)  # gr
+    np.multiply(e, np.float32(-1.0 / 20.0), out=e)   # -gr/20
+    np.power(np.float32(10.0), e, out=e)             # gain = 10^(-gr/20)
     if x.ndim == 2:
-        gain = gain[:, None]
-    return (x * gain).astype(np.float32)
+        e = e[:, None]
+    return x * e
 
 
 def parallel_compression(x, sr, threshold_db=-28.0, ratio=4.0,
@@ -439,15 +454,20 @@ def calibrate_lufs(x, sr, target=-20.0, max_gain_db=15.0):
 def leveler(x, sr, target_rms_db=-18.0, max_gain_db=3.0,
             attack_ms=300.0, release_ms=1500.0):
     """لولر نرم (کمپرسور اپتیکال خیلی کُند) — یکدستی بلندی بین جمله‌ها
-    بدون پامپینگ؛ حداکثر ±max_gain_db جابه‌جایی می‌ده."""
+    بدون پامپینگ؛ حداکثر ±max_gain_db جابه‌جایی می‌ده.
+    ⚠️ gain درجا محاسبه می‌شه (بدون آرایه‌های واسط full-size)."""
     e = env_follow(x, sr, attack_ms, release_ms)
-    e_db = lin2db(np.maximum(e, np.float32(1e-6)))
-    g_db = np.clip(np.float32(target_rms_db) - e_db,
-                   np.float32(-max_gain_db), np.float32(max_gain_db))
-    gain = db2lin(g_db).astype(np.float32)
+    np.maximum(e, np.float32(1e-6), out=e)
+    np.log10(e, out=e)
+    np.multiply(e, np.float32(20.0), out=e)          # e_db
+    np.negative(e, out=e)
+    np.add(e, np.float32(target_rms_db), out=e)      # target - e_db
+    np.clip(e, np.float32(-max_gain_db), np.float32(max_gain_db), out=e)  # g_db
+    np.multiply(e, np.float32(1.0 / 20.0), out=e)
+    np.power(np.float32(10.0), e, out=e)             # gain = 10^(g_db/20)
     if x.ndim == 2:
-        gain = gain[:, None]
-    return (x * gain).astype(np.float32)
+        e = e[:, None]
+    return x * e
 
 
 def soft_clip(x, ceiling_db=-2.2, knee_div=2.0):
@@ -455,19 +475,27 @@ def soft_clip(x, ceiling_db=-2.2, knee_div=2.0):
 
     زیر نیمی از سقف سیگنال دست‌نخورده رد می‌شه؛ بین زانو و سقف با tanh
     نرم می‌شینه (بدون پرش، بدون کلیک). تکنیک استاندارد قبل از لیمیتر
-    برای بلندیِ بالا بدون لهیدگی ترنزینت‌ها."""
+    برای بلندیِ بالا بدون لهیدگی ترنزینت‌ها.
+
+    ⚠️ بهینهٔ رم: بدون هیچ آرایهٔ full-size اضافه — نه |x|، نه کپی خروجی.
+    نمونه‌های عبوری با مقایسهٔ علامت پیدا می‌شن و درجا clip می‌شن (فراخواننده‌ها
+    همیشه y رو reassign می‌کنن، پس جهش درجا امنه). قبلاً `np.sign(x)*knee` +
+    `np.where` + `x.copy()` + `np.abs` چند آرایهٔ full-size استریو می‌ساختن."""
     single = x.ndim == 1
     if single:
         x = x[:, None]
+    if x.dtype != np.float32:
+        x = x.astype(np.float32)
     c = float(db2lin(ceiling_db))
     t = c / knee_div
-    a = np.abs(x)
-    over = a > t
-    y = x.copy()
+    over = (x > t) | (x < -t)
     if over.any():
-        knee = t + (c - t) * np.tanh((a - t) / (c - t))
-        y = np.where(over, np.sign(x) * knee, y)
-    return (y[:, 0] if single else y).astype(np.float32)
+        aov = np.abs(x[over])
+        knee = t + (c - t) * np.tanh((aov - t) / (c - t))
+        x[over] = np.sign(x[over]) * knee
+        del aov, knee
+    del over
+    return (x[:, 0] if single else x)
 
 
 
@@ -1382,11 +1410,9 @@ def vocal_chain(x, sr, v):
 
     # ── ترمیم استریو: وکال جدا‌شده یک کانالش ضعیفه → کانال قوی مبنای هر دو ──
     if v.get("stereo_repair"):
-        y = stereo_repair(y, sr)
-        # بعد از ترمیم، L==R (مونوی واقعی) → کل زنجیره رو مونو پردازش کن تا
-        # مصرف رم نصف بشه (روی سرویس ۱ گیگی عامل جلوگیری از OOM). پهنا رو
-        # لایهٔ بک‌ویس در پایان دوباره می‌سازه.
-        y = to_mono(y)
+        # مستقیم مونو (کانال قوی‌تر) — بدون ساخت آرایهٔ استریوی موقتِ stack
+        # و دوباره میانگین‌گرفتنش (که روی فایل‌های بلند ~۹۰MB هدر می‌داد).
+        y = _stronger_channel(y)
         mono_mode = True
         rep.append("ترمیم استریو — انتخاب کانال قوی‌تر و مرکزیت واقعی")
 
