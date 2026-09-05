@@ -931,10 +931,10 @@ presets:
       mix: 0.35
     eq_low_shelf:
       freq: 200
-      gain_db: -0.5
+      gain_db: 0.0
     eq_dip:
       freq: 250
-      gain_db: -1.5
+      gain_db: -0.5
       q: 2.5
     eq_presence:
       freq: 2500
@@ -970,7 +970,7 @@ presets:
       ratio: 3.0
     eq_warm:
       freq: 250
-      gain_db: -2.0
+      gain_db: 0.0
       q: 0.8
     gain_db: 2.5
     silk:

@@ -568,6 +568,13 @@ _KW_B1 = [1.53512485958697, -2.69169618940638, 1.19839281085285]
 _KW_A1 = [1.0, -1.69065929318241, 0.73248077421585]
 _KW_B2 = [1.0, -2.0, 1.0]
 _KW_A2 = [1.0, -1.99004745483398, 0.99007225036621]
+# نسخه‌های float32 همین ضرایب — تا کل مسیر LUFS بدون ارتقاء به float64 بمونه
+# (ارتقاء خودکارِ scipy.lfilter موقع ترکیب float32+float64 یه اسپایک رم
+# ~۱۷۰MB روی فایل‌های بلند می‌ساخت → عامل OOM روی سرویس ۱ گیگی).
+_KW_B1f = np.array(_KW_B1, dtype=np.float32)
+_KW_A1f = np.array(_KW_A1, dtype=np.float32)
+_KW_B2f = np.array(_KW_B2, dtype=np.float32)
+_KW_A2f = np.array(_KW_A2, dtype=np.float32)
 _KW_SR = 48000
 
 
@@ -576,6 +583,9 @@ def integrated_lufs(x, sr):
 
     روی مونو و با K-weighting استاندارد اندازه‌گیری می‌شه؛ خروجی با
     pyloudnorm در بازهٔ ±۰.۱۳ LUFS یکسانه، ولی کسری از رم مصرف می‌کنه.
+    ⚠️ کل مسیر float32 نگه داشته می‌شه (ری‌سمپل + فیلتر K-weighting) تا روی
+    فایل‌های بلند هیچ آرایهٔ float64 هم‌اندازهٔ کل فایل ساخته نشه (اسپایکِ
+    قبلی ~۱۷۰MB بود و روی سرویس ۱ گیگی OOM می‌ساخت).
     """
     from fractions import Fraction
 
@@ -583,14 +593,15 @@ def integrated_lufs(x, sr):
     if len(mono) < 2:
         return -70.0
 
-    # ری‌سمپل به 48kHz (ضرایب K-weighting برای این نرخ تعریف شدن)
+    # ری‌سمپل به 48kHz (ضرایب K-weighting برای این نرخ تعریف شدن) — float32
+    # (بدون ارتقاء به float64؛ resample_poly با ورودی float32 خودش float32 می‌مونه)
     if sr != _KW_SR:
         fr = Fraction(_KW_SR, sr)
-        mono = spsig.resample_poly(mono.astype(np.float64), fr.numerator,
-                                   fr.denominator)
-    # K-weighting: پیش‌فیلتر (high-pass) + شلف +4dB @ 1681.97Hz
-    y = spsig.lfilter(_KW_B1, _KW_A1, mono)
-    y = spsig.lfilter(_KW_B2, _KW_A2, y)
+        mono = spsig.resample_poly(mono.astype(np.float32), fr.numerator,
+                                   fr.denominator).astype(np.float32)
+    # K-weighting: پیش‌فیلتر (high-pass) + شلف +4dB @ 1681.97Hz (float32)
+    y = spsig.lfilter(_KW_B1f, _KW_A1f, mono)
+    y = spsig.lfilter(_KW_B2f, _KW_A2f, y)
 
     block = int(0.4 * _KW_SR)   # بلوک ۴۰۰ms
     nb = len(y) // block
@@ -1055,6 +1066,44 @@ def _env_to_ranges(env, sr, thresh=0.5):
     return ranges
 
 
+def _rms(x):
+    """RMS بدون ساخت آرایهٔ موقت full-size (np.square کل فایل رو کپی می‌کرد →
+    روی فایل‌های بلند اسپایک رم می‌ساخت). norm از reduceی strided استفاده می‌کنه."""
+    return float(np.linalg.norm(x) / np.sqrt(x.size))
+
+
+def _blocked_layer(layer_fn, dry, sr, block_s=30.0, overlap_s=6.0):
+    """یک لایهٔ فضایی (depth/body/shimmer) رو بلوکی می‌سازه.
+
+    Reverbِ پدالبورد بافر داخلی‌اش با طول فایل رشد می‌کنه (روی فایل ۴ دقیقه‌ای
+    ~۳۶۰MB!) → عامل اصلی OOM. این‌جا لایه روی بلوک‌های ۳۰ ثانیه‌ای با
+    هم‌پوشانی ۶ ثانیه‌ای (برای دمِ ریورب/اکو) ساخته می‌شه و با crossfade
+    هانینگ به هم می‌چسبه → مصرف رم مستقل از طول فایل.
+    """
+    mono = to_mono(dry).astype(np.float32, copy=False)
+    n = len(mono)
+    blen = int(block_s * sr)
+    ov = int(overlap_s * sr)
+    if n <= blen:
+        return layer_fn(mono)
+    out = np.zeros((n, 2), dtype=np.float32)
+    w = np.zeros(n, dtype=np.float32)
+    pos = 0
+    while pos < n:
+        end = min(pos + blen, n)
+        seg = layer_fn(mono[pos:end]).astype(np.float32)
+        fade = np.hanning(end - pos).astype(np.float32)[:, None]
+        out[pos:end] += seg * fade
+        w[pos:end] += fade[:, 0]
+        del seg
+        if end >= n:
+            break
+        pos += blen - ov
+    w = np.maximum(w, 1e-8)[:, None]
+    np.divide(out, w, out=out)
+    return out.astype(np.float32, copy=False)
+
+
 def add_three_layer(presence, dry, sr, cfg):
     """معماری سه‌لایه: Depth (عمق) + Body (ضخامت) + Presence (شفاف).
 
@@ -1067,8 +1116,10 @@ def add_three_layer(presence, dry, sr, cfg):
     بخش‌های کورس (رجیستر بالا) بهش اضافه می‌شه — همه پشتِ لایهٔ رویی.
     """
     from pedalboard import Delay, Reverb
-    presence = to_stereo(presence).astype(np.float32)
-    p_rms = float(np.sqrt(np.mean(np.square(presence)) + 1e-12))
+    # ⚠️ بدون .astype(copy) اضافه: to_stereo خودش float32 برمی‌گردونه؛ کپی‌کردن
+    # یه آرایهٔ کامل استریو (~۸۴MB روی فایل ۴ دقیقه‌ای) هدر می‌داد.
+    presence = to_stereo(presence)
+    p_rms = _rms(presence)
     n = len(presence)
 
     echo_ms = float(cfg.get("depth_echo_ms", 40.0))
@@ -1076,17 +1127,19 @@ def add_three_layer(presence, dry, sr, cfg):
     echo_mix = float(cfg.get("depth_echo_mix", 0.35))
 
     # ── لایهٔ Depth (ریورب + دیلی) ──
-    depth = _depth_layer(dry, sr, float(cfg.get("depth_pre_delay_ms", 35.0)),
-                         echo_ms=echo_ms, echo_fb=echo_fb, echo_mix=echo_mix,
-                         lpf_hz=float(cfg.get("depth_lpf_hz", 7500.0)),
-                         air_mix=float(cfg.get("depth_air_mix", 0.0)))
+    depth = _blocked_layer(
+        lambda blk: _depth_layer(blk, sr, float(cfg.get("depth_pre_delay_ms", 35.0)),
+                                 echo_ms=echo_ms, echo_fb=echo_fb, echo_mix=echo_mix,
+                                 lpf_hz=float(cfg.get("depth_lpf_hz", 7500.0)),
+                                 air_mix=float(cfg.get("depth_air_mix", 0.0))),
+        dry, sr)
     if len(depth) > n:
         depth = depth[:n]
     elif len(depth) < n:
         depth = np.pad(depth, ((0, n - len(depth)), (0, 0)))
-    d_rms = float(np.sqrt(np.mean(np.square(depth)) + 1e-12))
+    d_rms = _rms(depth)
     if d_rms > 1e-9:
-        depth = depth * np.float32(db2lin(cfg.get("depth_level_db", -20.0)) * p_rms / d_rms)
+        np.multiply(depth, np.float32(db2lin(cfg.get("depth_level_db", -20.0)) * p_rms / d_rms), out=depth)
 
     # ── هارمونی اکتاو فقط در کورس — داخل فضای عمق (ریورب + دیلی) ──
     hcfg = cfg.get("chorus_harmony")
@@ -1111,9 +1164,9 @@ def add_three_layer(presence, dry, sr, cfg):
                 harm = harm[:n]
             elif len(harm) < n:
                 harm = np.pad(harm, ((0, n - len(harm)), (0, 0)))
-            h_rms = float(np.sqrt(np.mean(np.square(harm)) + 1e-12))
+            h_rms = _rms(harm)
             if h_rms > 1e-9:
-                harm = harm * np.float32(db2lin(hcfg.get("level_db", -16.0)) * p_rms / h_rms)
+                np.multiply(harm, np.float32(db2lin(hcfg.get("level_db", -16.0)) * p_rms / h_rms), out=harm)
             np.add(depth, harm, out=depth)
             del harm
 
@@ -1121,29 +1174,31 @@ def add_three_layer(presence, dry, sr, cfg):
     del depth
 
     # ── لایهٔ Body ──
-    body = _body_layer(dry, sr, body_width=float(cfg.get("body_width", 0.45)),
-                       delay_ms=float(cfg.get("body_delay_ms", 0.0)),
-                       delay_fb=float(cfg.get("body_delay_fb", 0.25)),
-                       delay_mix=float(cfg.get("body_delay_mix", 0.15)))
+    body = _blocked_layer(
+        lambda blk: _body_layer(blk, sr, body_width=float(cfg.get("body_width", 0.45)),
+                                delay_ms=float(cfg.get("body_delay_ms", 0.0)),
+                                delay_fb=float(cfg.get("body_delay_fb", 0.25)),
+                                delay_mix=float(cfg.get("body_delay_mix", 0.15))),
+        dry, sr)
     if len(body) > n:
         body = body[:n]
     elif len(body) < n:
         body = np.pad(body, ((0, n - len(body)), (0, 0)))
-    b_rms = float(np.sqrt(np.mean(np.square(body)) + 1e-12))
+    b_rms = _rms(body)
     if b_rms > 1e-9:
-        body = body * np.float32(db2lin(cfg.get("body_level_db", -10.0)) * p_rms / b_rms)
+        np.multiply(body, np.float32(db2lin(cfg.get("body_level_db", -10.0)) * p_rms / b_rms), out=body)
     np.add(presence, body, out=presence)
     del body
 
     # ── لایهٔ Shimmer (درخشش شیشه‌ای — خیلی محو) ──
-    sh = shimmer_layer(dry, sr)
+    sh = _blocked_layer(lambda blk: shimmer_layer(blk, sr), dry, sr)
     if len(sh) > n:
         sh = sh[:n]
     elif len(sh) < n:
         sh = np.pad(sh, ((0, n - len(sh)), (0, 0)))
-    s_rms = float(np.sqrt(np.mean(np.square(sh)) + 1e-12))
+    s_rms = _rms(sh)
     if s_rms > 1e-9:
-        sh = sh * np.float32(db2lin(cfg.get("shimmer_level_db", -29.0)) * p_rms / s_rms)
+        np.multiply(sh, np.float32(db2lin(cfg.get("shimmer_level_db", -29.0)) * p_rms / s_rms), out=sh)
     np.add(presence, sh, out=presence)
     del sh
 
@@ -1211,8 +1266,12 @@ def multiband_harmonic_exciter(x, sr, cfg=None):
     cfg = cfg or {}
     bands = cfg.get("bands", ((200.0, 800.0, 0.08), (2000.0, 5000.0, 0.03),
                               (8000.0, 16000.0, 0.18)))
+    # ⚠️ از to_stereo استفاده نمی‌کنیم: ورودی (n,1) از block_apply باید (n,1)
+    # بمونه (نه اینکه به (n,2) پهن بشه و broadcast رو بشکنه). مثل saturation.
     single = x.ndim == 1
-    y = to_stereo(x).astype(np.float32)
+    y = np.ascontiguousarray(x, dtype=np.float32)
+    if single:
+        y = y[:, None]
     for lo, hi, drive in bands:
         sos = _sos_band(lo, hi, sr, btype="bandpass", order=4)
         band = spsig.sosfilt(sos, y, axis=0).astype(np.float32)
@@ -1534,7 +1593,10 @@ def vocal_chain(x, sr, v):
     # و ناچ‌های 1200/2500Hz هم وضوح ناحیهٔ ۱.۲–۳.۵kHz رو می‌بریدن.
     y = dynamic_resonance_eq(y, sr)
     rep.append("داینامیک EQ رزونانس‌های فردی (۳۰۰/۱۲۰۰/۳۵۰۰Hz)")
-    y = multiband_harmonic_exciter(y, sr)
+    # اکسایتر چندباندی — بلوکی تا روی فایل‌های بلند OOM نشه (فیلترها IIR کوتاه‌اند
+    # و block_apply با هم‌پوشانی، بازنشانی state رو محو می‌کنه — مثل بقیهٔ مراحل)
+    y = block_apply(
+        lambda blk: multiband_harmonic_exciter(blk, sr), y, sr, block_s=30.0)
     rep.append("اکسایتر چندباندی (گرما/وضوح/شیشه‌ای)")
     y = vocal_transient_designer(y, sr)
     rep.append("نرم‌کردن اتک کانسوننت‌ها (پ/ت/ک/چ) — مخملی")
@@ -1588,9 +1650,14 @@ def vocal_chain(x, sr, v):
         rep.append("سه‌لایه وکال (Depth + Body + Shimmer + Presence) — عمق و ضخامت")
 
     # ── ویبراتو ریز پیچ (لایه موازی محو) + پهنای استریو پویا ──
-    y = y + micro_pitch_vibrato(y, sr)
+    y += micro_pitch_vibrato(y, sr)
     rep.append("لرزش ریز پیچ (موازی محو) — حس زنده")
-    y = dynamic_stereo_width(y, sr, {"base_width": float(v.get("stereo_width", 1.0))})
+    # پهنای استریو پویا — بلوکی تا آرایه‌های mid/side فقط به‌اندازهٔ بلوک باشن
+    # (روی فایل‌های بلند mid/side دو آرایهٔ کامل استریو می‌ساختن → OOM)
+    y = block_apply(
+        lambda blk: dynamic_stereo_width(
+            blk, sr, {"base_width": float(v.get("stereo_width", 1.0))}),
+        y, sr, block_s=30.0)
     rep.append("پهنای استریو پویا (نفس‌کشیدن فضا)")
 
     # کلیپ نرم نهایی (به‌جای گارد پیکِ سخت که کل صدا رو کم می‌کرد و LUFS رو
