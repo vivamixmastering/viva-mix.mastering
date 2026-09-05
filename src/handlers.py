@@ -145,7 +145,9 @@ def _interval_kb():
 def _preset_kb():
     b = _kb()
     for p in load_presets():
-        b.button(text=p["name"], callback_data=f"p:{p['id']}")
+        voice = p.get("voice")
+        label = f"{p['name']} — {voice}" if voice else p["name"]
+        b.button(text=label, callback_data=f"p:{p['id']}")
     b.adjust(1)
     return b.as_markup()
 
@@ -163,6 +165,8 @@ def _presets_text():
     lines = ["🎚️ <b>پریست‌های میکس و مستر</b>", SEP]
     for i, p in enumerate(load_presets(), 1):
         lines.append(f"<b>{i}. {p['name']}</b>")
+        if p.get("voice"):
+            lines.append(f"   🎤 جنس صدا: <b>{p['voice']}</b>")
         lines.append(f"   {p['desc']}")
         lines.append(SEP)
     lines[-1] = ""  # حذف جداکنندهٔ آخر

@@ -274,7 +274,7 @@ presets:
   name: 🌙 آراندبی گرم
   desc: آراندبی گرم و ابریشمی — باس عمیق، وکال نرم و درخشان، فضای باز
   vocal:
-    hpf_hz: 90
+    hpf_hz: 80
     working_lufs: -20
     tune:
       scale: auto
@@ -300,22 +300,22 @@ presets:
       mix: 0.35
     eq_low_shelf:
       freq: 200
-      gain_db: -3.0
+      gain_db: 1.0
     eq_dip:
       freq: 250
-      gain_db: -5.0
+      gain_db: -0.5
       q: 2.5
     eq_presence:
       freq: 2500
-      gain_db: 4.0
+      gain_db: 1.0
       q: 1.0
     eq_gloss:
       freq: 9500
-      gain_db: 3.0
+      gain_db: 1.5
       q: 0.9
     eq_air_shelf:
       freq: 11000
-      gain_db: 4.0
+      gain_db: 3.0
     deess:
       threshold_db: -24.0
       ratio: 6.0
@@ -339,7 +339,7 @@ presets:
       ratio: 3.0
     eq_warm:
       freq: 250
-      gain_db: -8.0
+      gain_db: 1.0
       q: 0.8
     gain_db: 2.5
     silk:
@@ -458,6 +458,7 @@ presets:
         freq: 7000
         gain_db: 1.2
     dither: true
+  voice: باریتون
 - id: acoustic_natural
   name: 🎸 آکوستیک طبیعی
   desc: شفاف و دست‌نخورده با جلای ملایم — کمترین فشرده‌سازی، برای آکوستیک و لایو
@@ -589,7 +590,7 @@ presets:
   name: 💧 بالاد احساسی
   desc: ریورب بزرگ و جلای احساسی — برای تصنیف و بالادهای عاشقانه
   vocal:
-    hpf_hz: 80
+    hpf_hz: 70
     working_lufs: -20
     tune:
       strength: 0.65
@@ -611,23 +612,23 @@ presets:
       ratio: 6
       mix: 0.22
     eq_low_shelf:
-      freq: 110
-      gain_db: 2.0
+      freq: 200
+      gain_db: 1.5
     eq_dip:
-      freq: 2000
-      gain_db: -2.0
-      q: 1.5
+      freq: 250
+      gain_db: 0.0
+      q: 2.5
     eq_presence:
-      freq: 3000
-      gain_db: 2.5
-      q: 0.9
+      freq: 2500
+      gain_db: 0.75
+      q: 1.0
     eq_gloss:
       freq: 9500
-      gain_db: 1.8
+      gain_db: 1.25
       q: 0.9
     eq_air_shelf:
-      freq: 15000
-      gain_db: 2.0
+      freq: 11000
+      gain_db: 2.5
     deess:
       threshold_db: -24.0
       ratio: 6.0
@@ -676,11 +677,11 @@ presets:
       mix: 0.4
     eq_warm:
       freq: 250
-      gain_db: -8.0
+      gain_db: 1.5
       q: 0.8
     eq_high_shelf:
       freq: 8000
-      gain_db: 2.5
+      gain_db: 2.0
     gain_db: 2.5
     slap_delay:
       enabled: false
@@ -716,6 +717,7 @@ presets:
       threshold_db: -32.0
       ratio: 1.8
       mix: 0.15
+  voice: باس-باریتون
 - id: persian_pop
   name: 🌟 پاپ ایرانی
   desc: وکال شیشه‌ای و براق، گرم و پرقدرت — استاندارد روز پاپ ایرانی (بیس تنگ + تریبل
@@ -747,18 +749,18 @@ presets:
       mix: 0.35
     eq_low_shelf:
       freq: 200
-      gain_db: -3.0
+      gain_db: 0.0
     eq_dip:
       freq: 250
-      gain_db: -5.0
+      gain_db: -0.5
       q: 2.5
     eq_presence:
       freq: 2500
-      gain_db: 4.0
+      gain_db: 1.5
       q: 1.0
     eq_gloss:
       freq: 9500
-      gain_db: 3.0
+      gain_db: 2.0
       q: 0.9
     eq_air_shelf:
       freq: 11000
@@ -786,7 +788,7 @@ presets:
       ratio: 3.0
     eq_warm:
       freq: 250
-      gain_db: -8.0
+      gain_db: 0.0
       q: 0.8
     gain_db: 2.5
     silk:
@@ -796,7 +798,7 @@ presets:
     stereo_repair: true
     eq_high_shelf:
       freq: 8000
-      gain_db: 2.5
+      gain_db: 3.5
     three_layer:
       enabled: true
       depth_level_db: -11.0
@@ -901,6 +903,7 @@ presets:
         freq: 7000
         gain_db: 1.2
     dither: true
+  voice: تنور
 - id: viva
   name: 🌟 ویوا
   desc: وکال گرم، پرقدرت و براق + مسترینگ برنده — اتوتیون ملایم، حضور و درخشش بالا
@@ -1019,7 +1022,7 @@ presets:
       q: 0.9
     eq_low_shelf:
       freq: 40
-      gain_db: 10.0
+      gain_db: 3.0
     eq_high_shelf:
       freq: 12000
       gain_db: 2.0
@@ -1090,18 +1093,19 @@ presets:
         gain_db: 1.2
     dither: true
     eq_bass_cut:
-      freq: 110
-      gain_db: -6.0
-      q: 1.0
+      freq: 100
+      gain_db: -9.0
+      q: 0.8
     eq_gloss:
       freq: 5500
       gain_db: 0.0
       q: 0.9
+  voice: تنور
 - id: viva_bedler
   name: 🎵 ویوا بدلر
   desc: مسترینگ بیت/آهنگ کامل — همون تنظیم برندهٔ دیشب، بدون تغییر تُنال
   vocal:
-    hpf_hz: 95
+    hpf_hz: 60
     working_lufs: -20
     tune:
       scale: auto
@@ -1127,22 +1131,22 @@ presets:
       mix: 0.35
     eq_low_shelf:
       freq: 200
-      gain_db: -3.0
+      gain_db: 2.0
     eq_dip:
       freq: 250
-      gain_db: -5.0
+      gain_db: 0.0
       q: 2.5
     eq_presence:
       freq: 2500
-      gain_db: 4.0
+      gain_db: 0.5
       q: 1.0
     eq_gloss:
       freq: 9500
-      gain_db: 3.0
+      gain_db: 1.0
       q: 0.9
     eq_air_shelf:
       freq: 11000
-      gain_db: 4.0
+      gain_db: 2.0
     deess:
       threshold_db: -24.0
       ratio: 6.0
@@ -1166,7 +1170,7 @@ presets:
       ratio: 3.0
     eq_warm:
       freq: 250
-      gain_db: -8.0
+      gain_db: 2.0
       q: 0.8
     gain_db: 2.5
     silk:
@@ -1176,7 +1180,7 @@ presets:
     stereo_repair: true
     eq_high_shelf:
       freq: 8000
-      gain_db: 2.5
+      gain_db: 1.5
     three_layer:
       enabled: true
       depth_level_db: -11.0
@@ -1285,6 +1289,7 @@ presets:
         freq: 7000
         gain_db: 1.2
     dither: true
+  voice: باس
 - id: vintage_tape
   name: 📼 وینتج تیپ
   desc: صدای نواری گرم دهه ۷۰ — اشباع زیاد و جلای گرمِ محدود (کاراکتر تیپ حفظ می‌شه)
