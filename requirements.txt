@@ -1,11 +1,16 @@
 # کتابخانه‌های اصلی ربات (برای رندر/ریلوی)
 aiogram>=3.7,<4
+# ⚠️ setuptools<81 لازمه: pyworld موقع import از pkg_resources استفاده می‌کنه
+# که از setuptools 81 حذف شده. بدون این پین، بک وکال به PitchShift سنجابی
+# fallback می‌شه (صدای آلوین).
 setuptools<81
 numpy
 scipy
 soundfile
 pyyaml
 pedalboard
+# بک وکال (اکتاو/سوم/پنجم) — WORLD حافظ فرمت؛ روی لینوکس از سورس ساخته می‌شه
+# (ویل لینوکسی نداره) پس gcc لازمه که Nixpacks/Render خودشون دارن.
 pyworld
 python-dotenv
 aiohttp

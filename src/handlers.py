@@ -176,7 +176,7 @@ async def _ask_mode(msg, state, edit=False):
             "🎤 <b>وکال خالی</b> — فقط صدای خودت؛ زنجیرهٔ کامل وکال\n"
             "🎵 <b>آهنگ کامل</b> — فقط مسترینگ (زنجیرهٔ بیت)\n"
             "🔀 <b>میکس خالص</b> — دو استمِ مسترشده (وکال + بیت)؛ فقط بالانس\n"
-            "🎶 <b>بک وکال</b> — هارمونی اکتاو/سوم/پنجم پشت لید (طبیعی، بدون سنجاب)\n"
+            "🎶 <b>بک وکال</b> — هارمونی اکتاو/سوم/پنجم، هر فاصله فایل جدا (بدون سنجاب)\n"
             "🎯 <b>مطابق مرجع</b> — بدون پریست، دقیقاً با منحنی آهنگ مرجع")
     if edit:
         await msg.edit_text(text, reply_markup=_mode_kb(), parse_mode="HTML")
@@ -519,7 +519,7 @@ async def on_mode(cb: CallbackQuery, state: FSMContext):
         await cb.message.edit_text(
             "🎶 <b>بک وکال — کدوم فاصله؟</b>\n" + SEP + "\n"
             "هارمونی رو با WORLD (حافظ فرمت — بدون سنجاب/آلوین) می‌سازم و "
-            "توی لایهٔ عمق، پشت وکال اصلی میکس می‌کنم (طبیعی، ~-11dB).",
+            "برای هر فاصله یک فایل جدا می‌دم تا خودت روی سیستم جای مناسبش بذاری.",
             reply_markup=_interval_kb(), parse_mode="HTML")
         await cb.answer()
         return
@@ -679,24 +679,24 @@ async def on_preset(cb: CallbackQuery, state: FSMContext):
         if mode == "full":
             paths["full"] = first["path"]
 
-        # ── بک وکال: یک فایل خروجی (هارمونی طبیعی پشت لید) ──
+        # ── بک وکال: هر فاصله یک فایل جدا (لایه‌گذاری دستی) ──
         if mode == "harmony":
             intervals = ds.get("intervals") or [HARMONY_INTERVALS["octave"]]
-            out, rep, dt = await _run_async(process_harmony, paths, preset,
-                                            intervals, workdir)
-            labels = " + ".join(lb for _, lb in intervals)
+            outs, rep, dt = await _run_async(process_harmony, paths, preset,
+                                             intervals, workdir)
             await progress.delete()
             await cb.message.answer(
                 f"✅ <b>بک وکال تموم شد!</b>\n" + SEP + "\n"
                 f"⏱ زمان: {dt:.0f} ثانیه\n"
-                f"🎛️ پریست: {preset['name']}\n"
-                f"🎶 فواصل: {labels}\n" + SEP + "\n"
+                f"🎛️ پریست: {preset['name']}\n" + SEP + "\n"
                 + "\n".join(rep),
                 parse_mode="HTML")
-            await cb.message.answer_audio(
-                FSInputFile(out, filename=f"backing_{preset['id']}.mp3"),
-                title=f"{preset['name']} — بک وکال",
-                performer="Viva MixMaster")
+            for path, label in outs:
+                fname = f"backing_{preset['id']}_{label.replace(' ', '_')}.mp3"
+                await cb.message.answer_audio(
+                    FSInputFile(path, filename=fname),
+                    title=f"{preset['name']} — {label}",
+                    performer="Viva MixMaster")
             return
 
         out, rep, dt = await _run_async(process_mode, paths, mode, preset,

@@ -991,12 +991,6 @@ presets:
       depth_echo_ms: 40.0
       depth_echo_fb: 0.3
       depth_echo_mix: 0.35
-      chorus_harmony:
-        enabled: true
-        semitones:
-        - 12
-        - 7
-        level_db: -11.0
       depth_lpf_hz: 12500.0
       depth_air_mix: 0.25
       body_delay_ms: 28.0
@@ -1193,12 +1187,6 @@ presets:
       depth_echo_ms: 40.0
       depth_echo_fb: 0.3
       depth_echo_mix: 0.35
-      chorus_harmony:
-        enabled: true
-        semitones:
-        - 12
-        - 7
-        level_db: -11.0
       depth_lpf_hz: 12500.0
       depth_air_mix: 0.25
       body_delay_ms: 28.0
