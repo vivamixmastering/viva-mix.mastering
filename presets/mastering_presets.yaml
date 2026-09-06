@@ -616,11 +616,11 @@ presets:
       gain_db: 1.5
     eq_dip:
       freq: 250
-      gain_db: 0.0
-      q: 2.5
+      gain_db: -2.0
+      q: 1.2
     eq_presence:
       freq: 2500
-      gain_db: 0.75
+      gain_db: 1.5
       q: 1.0
     eq_gloss:
       freq: 9500
@@ -630,8 +630,8 @@ presets:
       freq: 11000
       gain_db: 2.5
     deess:
-      threshold_db: -24.0
-      ratio: 6.0
+      threshold_db: -20.0
+      ratio: 4.0
       freq: 7300
     warmth:
       drive_db: 2.0
