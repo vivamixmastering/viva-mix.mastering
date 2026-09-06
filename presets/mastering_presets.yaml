@@ -936,23 +936,23 @@ presets:
       freq: 200
       gain_db: 0.0
     eq_dip:
-      freq: 250
-      gain_db: -0.5
-      q: 2.5
+      freq: 280
+      gain_db: -2.5
+      q: 1.3
     eq_presence:
       freq: 2500
       gain_db: 1.5
       q: 1.0
     eq_gloss:
       freq: 9500
-      gain_db: 2.0
+      gain_db: 3.0
       q: 0.9
     eq_air_shelf:
       freq: 11000
-      gain_db: 4.0
+      gain_db: 5.5
     deess:
-      threshold_db: -24.0
-      ratio: 6.0
+      threshold_db: -18.0
+      ratio: 4.0
       freq: 7300
       freq2: 4500
       ratio2: 2.5
@@ -979,26 +979,26 @@ presets:
     silk:
       freq: 6000
       drive_db: 2.2
-      mix: 0.6
+      mix: 0.4
     stereo_repair: true
     eq_high_shelf:
       freq: 8000
       gain_db: 3.5
     three_layer:
       enabled: true
-      depth_level_db: -11.0
-      body_level_db: -8.0
-      depth_pre_delay_ms: 5.0
+      depth_level_db: -13.0
+      body_level_db: -9.0
+      depth_pre_delay_ms: 25.0
       body_width: 0.45
-      shimmer_level_db: -14.0
+      shimmer_level_db: -16.0
       depth_echo_ms: 40.0
-      depth_echo_fb: 0.3
-      depth_echo_mix: 0.35
-      depth_lpf_hz: 12500.0
-      depth_air_mix: 0.25
+      depth_echo_fb: 0.26
+      depth_echo_mix: 0.24
+      depth_lpf_hz: 13500.0
+      depth_air_mix: 0.35
       body_delay_ms: 28.0
       body_delay_fb: 0.2
-      body_delay_mix: 0.18
+      body_delay_mix: 0.1
     slap_delay:
       enabled: false
       time_s: 0.035
@@ -1015,7 +1015,7 @@ presets:
     vocal_lead_db: 1.5
   master:
     working_lufs: -18
-    hpf_hz: 25
+    hpf_hz: 30
     eq_dip:
       freq: 1500
       gain_db: -4.0
@@ -1028,11 +1028,11 @@ presets:
       gain_db: 2.0
     width: 0.7
     sat:
-      drive_db: 0.45
+      drive_db: 0.2
       mix: 0.12
     clip:
       ceiling_db: -0.15
-    lufs: -10.5
+    lufs: -6.5
     ceiling: -1.5
     eq_presence:
       freq: 5000
@@ -1079,23 +1079,27 @@ presets:
       release_ms: 100
       max_cut_db: 3.0
     transient:
-      low_punch_db: 1.3
+      low_punch_db: 0.5
       split_hz: 2500
     ms_eq:
       mid:
-      - type: peak
-        freq: 350
-        gain_db: -1.4
+      - freq: 200
+        gain_db: -2.5
+        q: 0.8
+        type: peak
+      - freq: 350
+        gain_db: -2.5
         q: 0.9
+        type: peak
       side:
-      - type: high_shelf
-        freq: 7000
+      - freq: 7000
         gain_db: 1.2
+        type: high_shelf
     dither: true
     eq_bass_cut:
-      freq: 100
-      gain_db: -12.0
-      q: 0.9
+      freq: 90
+      gain_db: -11
+      q: 1.0
     eq_gloss:
       freq: 5500
       gain_db: 0.0

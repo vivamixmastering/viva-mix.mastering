@@ -17,6 +17,7 @@ handlers.py — منطق کامل ربات تلگرام
   ۵) ربات پردازش می‌کنه و فایل نهایی رو برمی‌گردونه
 """
 import logging
+import shutil
 import uuid
 from pathlib import Path
 
@@ -647,6 +648,7 @@ async def _run_reference(cb: CallbackQuery, state: FSMContext, first, second):
         except Exception:
             await cb.message.answer(f"❌ پردازش خطا داد:\n{e}")
     finally:
+        shutil.rmtree(workdir, ignore_errors=True)
         await state.clear()
 
 
@@ -729,6 +731,7 @@ async def on_preset(cb: CallbackQuery, state: FSMContext):
         except Exception:
             await cb.message.answer(f"❌ پردازش خطا داد:\n{e}")
     finally:
+        shutil.rmtree(workdir, ignore_errors=True)
         await state.clear()
 
 
@@ -778,6 +781,7 @@ async def on_mixmodel(cb: CallbackQuery, state: FSMContext):
         except Exception:
             await cb.message.answer(f"❌ میکس خطا داد:\n{e}")
     finally:
+        shutil.rmtree(workdir, ignore_errors=True)
         await state.clear()
 
 

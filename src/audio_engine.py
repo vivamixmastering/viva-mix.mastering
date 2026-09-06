@@ -607,36 +607,35 @@ _KW_SR = 48000
 
 
 def integrated_lufs(x, sr):
-    """بلندی یکپارچه EBU R128 (LUFS) — سبک و کم‌مصرف.
+    """بلندی یکپارچه EBU R128 (LUFS) — سبک و کم‌مصرف، دقیق مطابق ITU-R BS.1770.
 
-    روی مونو و با K-weighting استاندارد اندازه‌گیری می‌شه؛ خروجی با
-    pyloudnorm در بازهٔ ±۰.۱۳ LUFS یکسانه، ولی کسری از رم مصرف می‌کنه.
-    ⚠️ کل مسیر float32 نگه داشته می‌شه (ری‌سمپل + فیلتر K-weighting) تا روی
-    فایل‌های بلند هیچ آرایهٔ float64 هم‌اندازهٔ کل فایل ساخته نشه (اسپایکِ
-    قبلی ~۱۷۰MB بود و روی سرویس ۱ گیگی OOM می‌ساخت).
+    خروجی با pyloudnorm در بازهٔ ±۰.۱ LUFS یکسانه.
+    ⚠️ نکتهٔ حیاتی: BS.1770 انرژیِ «تکتک کانال‌ها» رو جمع می‌کنه (نه میانگین
+    کانال‌ها). نسخهٔ قبلی x.mean(axis=1) می‌گرفت → روی استریو ~۴ LU کمتر از واقعیت
+    می‌سنجید → زنجیرهٔ مستر همه‌چیز رو ~۴ LU بلندتر از هدف میکرد (عامل «جر»).
     """
     from fractions import Fraction
 
-    mono = x.mean(axis=1) if x.ndim == 2 else np.asarray(x)
-    if len(mono) < 2:
+    if x.ndim == 1:
+        x = x[:, None]
+    if len(x) < 2:
         return -70.0
 
-    # ری‌سمپل به 48kHz (ضرایب K-weighting برای این نرخ تعریف شدن) — float32
-    # (بدون ارتقاء به float64؛ resample_poly با ورودی float32 خودش float32 می‌مونه)
+    # ری‌سمپل به 48kHz (ضرایب K-weighting برای این نرخ تعریف شدن) — float32 بلوکی
     if sr != _KW_SR:
         fr = Fraction(_KW_SR, sr)
-        mono = spsig.resample_poly(mono.astype(np.float32), fr.numerator,
-                                   fr.denominator).astype(np.float32)
-    # K-weighting: پیش‌فیلتر (high-pass) + شلف +4dB @ 1681.97Hz (float32)
-    y = spsig.lfilter(_KW_B1f, _KW_A1f, mono)
-    y = spsig.lfilter(_KW_B2f, _KW_A2f, y)
+        x = spsig.resample_poly(x.astype(np.float32), fr.numerator,
+                                fr.denominator, axis=0).astype(np.float32)
+    # K-weighting روی هر کانال (پیش‌فیلتر + شلف +4dB @ 1681.97Hz)
+    y = spsig.lfilter(_KW_B1f, _KW_A1f, x, axis=0)
+    y = spsig.lfilter(_KW_B2f, _KW_A2f, y, axis=0)
 
     block = int(0.4 * _KW_SR)   # بلوک ۴۰۰ms
     nb = len(y) // block
     if nb < 1:
         return -70.0
-    z = y[: nb * block].reshape(nb, block)
-    ms = (z * z).mean(axis=1) + 1e-12
+    z = y[: nb * block].reshape(nb, block, y.shape[1])
+    ms = (z * z).mean(axis=1).sum(axis=1) + 1e-12  # جمع انرژی کانال‌ها (BS.1770)
     l = -0.691 + 10.0 * np.log10(ms)
 
     # گیت مطلق (-70 LUFS) و گیت نسبی (-10 LU زیر میانگین)
