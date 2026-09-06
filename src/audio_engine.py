@@ -881,6 +881,10 @@ def _depth_layer(dry, sr, pre_delay_ms=35.0, echo_ms=40.0, echo_fb=0.3, echo_mix
         d = np.roll(d, pd, axis=0)
         d[:pd] = 0.0
     d = HighpassFilter(cutoff_frequency_hz=250.0)(d, sr)
+    # دی‌اسر باندی ورودی ریورب — فقط ناحیهٔ «س/ش» (۴–۹kHz) نرم بشه تا توی
+    # دم زنگ نزنه و اکسایتر هوای دم هم اونو تیز نکنه؛ بدون دست‌زدن به هوای
+    # ۹–۱۶kHz (دم روشن/شیشه‌ای می‌مونه، نه خفه).
+    d = _band_deess(d, sr, 4000.0, 9000.0, -26.0, 4.0, 1.5, 35.0, max_cut_db=8.0)
     d = Reverb(room_size=0.85, damping=0.35,
                wet_level=1.0, dry_level=0.0, width=1.0)(d, sr)
     if echo_ms > 0 and echo_mix > 0:
@@ -946,6 +950,8 @@ def shimmer_layer(dry, sr):
     # فقط باند هوا (بالای ۴kHz) — بدون تغییر زیروبمی، بدون فرمت جابه‌جا
     sos = spsig.butter(4, 4000.0, btype="high", fs=sr, output="sos")
     m = spsig.sosfilt(sos, m, axis=0).astype(np.float32)
+    # دی‌اسر باندی ورودی — «س/ش» توی این لایهٔ هوا زنگ نزنه (بدون کشتن هوای بالا)
+    m = _band_deess(m, sr, 4000.0, 9000.0, -26.0, 4.0, 1.5, 35.0, max_cut_db=8.0)
     m = Reverb(room_size=0.6, damping=0.5,
                wet_level=1.0, dry_level=0.0, width=1.0)(m, sr)
     return _stereo_spread(np.asarray(m, dtype=np.float32), sr, width=1.0)
