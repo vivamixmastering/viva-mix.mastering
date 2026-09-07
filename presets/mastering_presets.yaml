@@ -994,8 +994,8 @@ presets:
       depth_echo_ms: 40.0
       depth_echo_fb: 0.26
       depth_echo_mix: 0.24
-      depth_lpf_hz: 13500.0
-      depth_air_mix: 0.35
+      depth_lpf_hz: 11000.0
+      depth_air_mix: 0.18
       body_delay_ms: 28.0
       body_delay_fb: 0.2
       body_delay_mix: 0.1
@@ -1015,29 +1015,29 @@ presets:
     vocal_lead_db: 1.5
   master:
     working_lufs: -18
-    hpf_hz: 30
+    hpf_hz: 25
     eq_dip:
-      freq: 1500
-      gain_db: -4.0
-      q: 0.9
+      freq: 750
+      gain_db: 3.0
+      q: 0.75
     eq_low_shelf:
-      freq: 40
-      gain_db: 0.0
+      freq: 55
+      gain_db: 6.0
     eq_high_shelf:
-      freq: 12000
-      gain_db: 2.0
-    width: 0.7
+      freq: 8000
+      gain_db: 6.0
+    width: 1.0
     sat:
-      drive_db: 0.2
-      mix: 0.12
+      drive_db: 0.15
+      mix: 0.08
     clip:
       ceiling_db: -0.15
-    lufs: -6.5
-    ceiling: -1.5
+    lufs: -8.0
+    ceiling: -1.0
     eq_presence:
-      freq: 5000
-      gain_db: -4.0
-      q: 1.0
+      freq: 2800
+      gain_db: -6.0
+      q: 0.6
     multiband:
       crossover_low: 150
       crossover_high: 3000
@@ -1047,8 +1047,8 @@ presets:
         attack_ms: 35
         release_ms: 220
       mid:
-        threshold_db: -20
-        ratio: 1.4
+        threshold_db: -16
+        ratio: 1.2
         attack_ms: 20
         release_ms: 160
       high:
@@ -1064,22 +1064,15 @@ presets:
       ratio: 3.0
       release_ms: 180.0
     dyn_eq:
-    - lo_hz: 280
-      hi_hz: 550
-      threshold_db: -24
-      ratio: 1.3
-      attack_ms: 18
-      release_ms: 140
-      max_cut_db: 3.8
-    - lo_hz: 2000
-      hi_hz: 4000
-      threshold_db: -22
-      ratio: 1.2
-      attack_ms: 12
-      release_ms: 100
-      max_cut_db: 3.0
+    - lo_hz: 1400
+      hi_hz: 4200
+      threshold_db: -20
+      ratio: 1.5
+      attack_ms: 10
+      release_ms: 90
+      max_cut_db: 4.0
     transient:
-      low_punch_db: 0.5
+      low_punch_db: 0.85
       split_hz: 2500
     ms_eq:
       mid:
@@ -1097,13 +1090,14 @@ presets:
         type: high_shelf
     dither: true
     eq_bass_cut:
-      freq: 90
-      gain_db: -11
-      q: 1.0
+      freq: 95
+      gain_db: -8.0
+      q: 1.5
     eq_gloss:
-      freq: 5500
-      gain_db: 0.0
+      freq: 6000
+      gain_db: 1.5
       q: 0.9
+    limiter_release_ms: 150
   voice: تنور
 - id: viva_bedler
   name: 🎵 ویوا بدلر
